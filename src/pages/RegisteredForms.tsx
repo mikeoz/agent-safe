@@ -27,7 +27,7 @@ export default function RegisteredForms() {
 
   useEffect(() => {
     const fetchForms = async () => {
-      const { data, error } = await supabase.from("card_forms").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("card_forms").select("id, name, form_type, status, registered_at, created_at").order("created_at", { ascending: false });
       if (!error && data) setForms(data);
       setLoading(false);
     };

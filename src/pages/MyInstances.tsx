@@ -19,6 +19,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
 interface CardInstance {
@@ -29,6 +36,8 @@ interface CardInstance {
   card_forms?: { name: string; form_type: string } | null;
 }
 
+type RecipientMode = "member" | "invitee";
+
 export default function MyInstances() {
   const { toast } = useToast();
   const [instances, setInstances] = useState<CardInstance[]>([]);
@@ -36,7 +45,9 @@ export default function MyInstances() {
 
   // Issue dialog state
   const [issueTarget, setIssueTarget] = useState<CardInstance | null>(null);
+  const [recipientMode, setRecipientMode] = useState<RecipientMode>("member");
   const [recipientId, setRecipientId] = useState("");
+  const [inviteeLocator, setInviteeLocator] = useState("");
   const [issuing, setIssuing] = useState(false);
 
   const fetchInstances = async () => {
@@ -52,26 +63,51 @@ export default function MyInstances() {
     fetchInstances();
   }, []);
 
+  const resetIssueDialog = () => {
+    setIssueTarget(null);
+    setRecipientMode("member");
+    setRecipientId("");
+    setInviteeLocator("");
+  };
+
   const handleIssue = async () => {
-    if (!issueTarget || !recipientId.trim()) return;
+    if (!issueTarget) return;
+
+    const hasMember = recipientMode === "member" && recipientId.trim();
+    const hasInvitee = recipientMode === "invitee" && inviteeLocator.trim();
+
+    if (!hasMember && !hasInvitee) return;
+
     setIssuing(true);
 
     try {
-      const { data, error } = await (supabase.rpc as any)("issue_card", {
+      const params: Record<string, string | undefined> = {
         p_instance_id: issueTarget.id,
-        p_recipient_member_id: recipientId.trim(),
-      });
+      };
+
+      if (recipientMode === "member") {
+        params.p_recipient_member_id = recipientId.trim();
+      } else {
+        params.p_invitee_locator = inviteeLocator.trim();
+      }
+
+      const { data, error } = await (supabase.rpc as any)("issue_card", params);
 
       if (error) throw error;
 
       toast({ title: "Card issued", description: `Issuance ID: ${data}` });
-      setIssueTarget(null);
-      setRecipientId("");
+      resetIssueDialog();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setIssuing(false);
     }
+  };
+
+  const isIssueDisabled = () => {
+    if (issuing) return true;
+    if (recipientMode === "member") return !recipientId.trim();
+    return !inviteeLocator.trim();
   };
 
   return (
@@ -122,7 +158,7 @@ export default function MyInstances() {
         </Table>
       )}
 
-      <Dialog open={!!issueTarget} onOpenChange={(open) => !open && setIssueTarget(null)}>
+      <Dialog open={!!issueTarget} onOpenChange={(open) => !open && resetIssueDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Issue CARD Instance</DialogTitle>
@@ -132,21 +168,46 @@ export default function MyInstances() {
               Instance: <span className="font-mono">{issueTarget?.id.slice(0, 8)}…</span>
             </p>
             <div className="space-y-2">
-              <Label htmlFor="recipientId">Recipient Member ID (UUID)</Label>
-              <Input
-                id="recipientId"
-                value={recipientId}
-                onChange={(e) => setRecipientId(e.target.value)}
-                placeholder="Enter recipient's user ID"
-                className="font-mono text-sm"
-              />
+              <Label>Recipient Type</Label>
+              <Select value={recipientMode} onValueChange={(v) => setRecipientMode(v as RecipientMode)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member (by ID)</SelectItem>
+                  <SelectItem value="invitee">Invitee (by locator)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            {recipientMode === "member" ? (
+              <div className="space-y-2">
+                <Label htmlFor="recipientId">Recipient Member ID (UUID)</Label>
+                <Input
+                  id="recipientId"
+                  value={recipientId}
+                  onChange={(e) => setRecipientId(e.target.value)}
+                  placeholder="Enter recipient's user ID"
+                  className="font-mono text-sm"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="inviteeLocator">Invitee Locator</Label>
+                <Input
+                  id="inviteeLocator"
+                  value={inviteeLocator}
+                  onChange={(e) => setInviteeLocator(e.target.value)}
+                  placeholder="e.g. email or external identifier"
+                  className="font-mono text-sm"
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIssueTarget(null)}>
+            <Button variant="outline" onClick={resetIssueDialog}>
               Cancel
             </Button>
-            <Button onClick={handleIssue} disabled={issuing || !recipientId.trim()}>
+            <Button onClick={handleIssue} disabled={isIssueDisabled()}>
               {issuing ? "Issuing…" : "Issue Card"}
             </Button>
           </DialogFooter>

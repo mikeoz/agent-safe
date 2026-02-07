@@ -1,1 +1,4 @@
 project_id = "biejnguqnejzwmypotez"
+
+[functions.system-register-form]
+verify_jwt = false

@@ -22,6 +22,7 @@ export default function RegisterForm() {
   const [formType, setFormType] = useState<string>("");
   const [schemaDef, setSchemaDef] = useState("{}");
   const [submitting, setSubmitting] = useState(false);
+  const [mode, setMode] = useState<"system" | "member">("system");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,15 +38,33 @@ export default function RegisterForm() {
     }
 
     try {
-      const { data, error } = await (supabase.rpc as any)("register_card_form", {
-        p_name: name,
-        p_form_type: formType,
-        p_schema_definition: parsed,
-      });
+      if (mode === "system") {
+        // System registration via edge function — actor_id = NULL
+        const res = await supabase.functions.invoke("system-register-form", {
+          body: {
+            name,
+            form_type: formType,
+            schema_definition: parsed,
+          },
+        });
 
-      if (error) throw error;
+        if (res.error) throw res.error;
+        const result = res.data as { id: string; error?: string };
+        if (result.error) throw new Error(result.error);
 
-      toast({ title: "Form registered", description: `ID: ${data}` });
+        toast({ title: "Form registered (system)", description: `ID: ${result.id}` });
+      } else {
+        // Member registration via RPC — actor_id = auth.uid()
+        const { data, error } = await (supabase.rpc as any)("register_card_form", {
+          p_name: name,
+          p_form_type: formType,
+          p_schema_definition: parsed,
+        });
+
+        if (error) throw error;
+        toast({ title: "Form registered", description: `ID: ${data}` });
+      }
+
       navigate("/forms");
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -63,6 +82,18 @@ export default function RegisterForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Registration Mode</Label>
+              <Select value={mode} onValueChange={(v) => setMode(v as "system" | "member")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system">System Register (Alpha) — actor = system</SelectItem>
+                  <SelectItem value="member">Member Register — actor = you</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -91,7 +122,7 @@ export default function RegisterForm() {
               />
             </div>
             <Button type="submit" disabled={submitting || !formType}>
-              {submitting ? "Registering…" : "Register Form"}
+              {submitting ? "Registering…" : mode === "system" ? "System Register (Alpha)" : "Register Form"}
             </Button>
           </form>
         </CardContent>
