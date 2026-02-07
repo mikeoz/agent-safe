@@ -152,6 +152,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_card_instance: {
+        Args: { p_form_id: string; p_payload: Json }
+        Returns: string
+      }
       get_audit_trail: {
         Args: { p_entity_id: string; p_entity_type: string }
         Returns: {
@@ -172,6 +176,26 @@ export type Database = {
           instance_id: string
           payload: Json
         }[]
+      }
+      issue_card: {
+        Args: {
+          p_instance_id: string
+          p_invitee_locator?: string
+          p_recipient_member_id?: string
+        }
+        Returns: string
+      }
+      register_card_form: {
+        Args: {
+          p_form_type: Database["public"]["Enums"]["card_form_type"]
+          p_name: string
+          p_schema_definition: Json
+        }
+        Returns: string
+      }
+      resolve_card_issuance: {
+        Args: { p_issuance_id: string; p_resolution: string }
+        Returns: undefined
       }
     }
     Enums: {
