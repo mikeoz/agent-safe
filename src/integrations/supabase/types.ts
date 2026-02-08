@@ -154,7 +154,11 @@ export type Database = {
     Functions: {
       create_card_instance: {
         Args: { p_form_id: string; p_payload: Json }
-        Returns: string
+        Returns: {
+          error_code: string
+          error_message: string
+          instance_id: string
+        }[]
       }
       get_audit_trail: {
         Args: { p_entity_id: string; p_entity_type: string }

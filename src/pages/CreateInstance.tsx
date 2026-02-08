@@ -60,8 +60,19 @@ export default function CreateInstance() {
 
       if (error) throw error;
 
-      toast({ title: "Instance created", description: `ID: ${data}` });
-      navigate("/instances");
+      // RPC now returns TABLE rows; take the first result
+      const result = Array.isArray(data) ? data[0] : data;
+
+      if (result?.error_code) {
+        toast({
+          title: "Blocked",
+          description: result.error_message || result.error_code,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Instance created", description: `ID: ${result?.instance_id}` });
+        navigate("/instances");
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
