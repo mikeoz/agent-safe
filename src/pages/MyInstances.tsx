@@ -2,31 +2,21 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CopyIdButton } from "@/components/CopyIdButton";
+import { useCopyToast } from "@/components/CopyToast";
 
 interface CardInstance {
   id: string;
@@ -36,12 +26,22 @@ interface CardInstance {
   card_forms?: { name: string; form_type: string } | null;
 }
 
+interface Delivery {
+  id: string;
+  issuance_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 type RecipientMode = "member" | "invitee";
 
 export default function MyInstances() {
-  const { toast } = useToast();
+  const { copyToast } = useCopyToast();
   const [instances, setInstances] = useState<CardInstance[]>([]);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deliveriesLoading, setDeliveriesLoading] = useState(true);
 
   // Issue dialog state
   const [issueTarget, setIssueTarget] = useState<CardInstance | null>(null);
@@ -59,8 +59,18 @@ export default function MyInstances() {
     setLoading(false);
   };
 
+  const fetchDeliveries = async () => {
+    const { data, error } = await (supabase as any)
+      .from("card_deliveries")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!error && data) setDeliveries(data as Delivery[]);
+    setDeliveriesLoading(false);
+  };
+
   useEffect(() => {
     fetchInstances();
+    fetchDeliveries();
   }, []);
 
   const resetIssueDialog = () => {
@@ -95,10 +105,18 @@ export default function MyInstances() {
 
       if (error) throw error;
 
-      toast({ title: "Card issued", description: `Issuance ID: ${data}` });
+      // RPC now returns TABLE rows
+      const result = Array.isArray(data) ? data[0] : data;
+
+      copyToast({
+        title: "Card issued",
+        id: result?.issuance_id,
+        label: "Issuance ID",
+      });
       resetIssueDialog();
+      fetchDeliveries();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      copyToast({ title: "Error: " + err.message, variant: "destructive" });
     } finally {
       setIssuing(false);
     }
@@ -118,45 +136,123 @@ export default function MyInstances() {
           <Link to="/instances/create">Create Instance</Link>
         </Button>
       </div>
-      {loading ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
-      ) : instances.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No instances yet.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Instance ID</TableHead>
-              <TableHead>Form</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {instances.map((inst) => (
-              <TableRow key={inst.id}>
-                <TableCell className="font-mono text-xs">{inst.id.slice(0, 8)}…</TableCell>
-                <TableCell>
-                  {inst.card_forms ? `${inst.card_forms.name} (${inst.card_forms.form_type})` : inst.form_id.slice(0, 8)}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {new Date(inst.created_at).toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setIssueTarget(inst)}>
-                      Issue
-                    </Button>
-                    <Button asChild variant="ghost" size="sm">
-                      <Link to={`/audit?entityType=card_instance&entityId=${inst.id}`}>Audit</Link>
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+
+      <Tabs defaultValue="created">
+        <TabsList>
+          <TabsTrigger value="created">Created</TabsTrigger>
+          <TabsTrigger value="received">Received</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="created" className="mt-4">
+          {loading ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : instances.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No instances yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Instance ID</TableHead>
+                  <TableHead>Form</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {instances.map((inst) => (
+                  <TableRow key={inst.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-xs">{inst.id.slice(0, 8)}…</span>
+                        <CopyIdButton value={inst.id} />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {inst.card_forms
+                        ? `${inst.card_forms.name} (${inst.card_forms.form_type})`
+                        : inst.form_id.slice(0, 8)}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(inst.created_at).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setIssueTarget(inst)}>
+                          Issue
+                        </Button>
+                        <Button asChild variant="ghost" size="sm">
+                          <Link to={`/audit?entityType=card_instance&entityId=${inst.id}`}>Audit</Link>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+
+        <TabsContent value="received" className="mt-4">
+          {deliveriesLoading ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : deliveries.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No received deliveries.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Delivery ID</TableHead>
+                  <TableHead>Issuance ID</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Received</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {deliveries.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-xs">{d.id.slice(0, 8)}…</span>
+                        <CopyIdButton value={d.id} />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-xs">{d.issuance_id.slice(0, 8)}…</span>
+                        <CopyIdButton value={d.issuance_id} />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          d.status === "accepted"
+                            ? "default"
+                            : d.status === "rejected"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {d.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(d.created_at).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Button asChild variant="ghost" size="sm">
+                        <Link to={`/audit?entityType=card_issuance&entityId=${d.issuance_id}`}>
+                          Audit
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={!!issueTarget} onOpenChange={(open) => !open && resetIssueDialog()}>
         <DialogContent>

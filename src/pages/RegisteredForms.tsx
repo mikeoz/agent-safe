@@ -2,15 +2,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CopyIdButton } from "@/components/CopyIdButton";
 
 interface CardForm {
   id: string;
@@ -27,7 +23,10 @@ export default function RegisteredForms() {
 
   useEffect(() => {
     const fetchForms = async () => {
-      const { data, error } = await supabase.from("card_forms").select("id, name, form_type, status, registered_at, created_at").order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("card_forms")
+        .select("id, name, form_type, status, registered_at, created_at")
+        .order("created_at", { ascending: false });
       if (!error && data) setForms(data);
       setLoading(false);
     };
@@ -50,6 +49,7 @@ export default function RegisteredForms() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Form ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Status</TableHead>
@@ -60,6 +60,12 @@ export default function RegisteredForms() {
           <TableBody>
             {forms.map((form) => (
               <TableRow key={form.id}>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-xs">{form.id.slice(0, 8)}…</span>
+                    <CopyIdButton value={form.id} />
+                  </div>
+                </TableCell>
                 <TableCell className="font-medium">{form.name}</TableCell>
                 <TableCell>
                   <Badge variant="secondary">{form.form_type}</Badge>
