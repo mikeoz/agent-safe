@@ -5,14 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useCopyToast } from "@/components/CopyToast";
+import { ResultPanel } from "@/components/ResultPanel";
 
 interface CardForm {
   id: string;
@@ -21,7 +18,7 @@ interface CardForm {
 }
 
 export default function CreateInstance() {
-  const { toast } = useToast();
+  const { copyToast } = useCopyToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedFormId = searchParams.get("formId") || "";
@@ -30,6 +27,7 @@ export default function CreateInstance() {
   const [formId, setFormId] = useState(preselectedFormId);
   const [payload, setPayload] = useState("{}");
   const [submitting, setSubmitting] = useState(false);
+  const [lastResult, setLastResult] = useState<{ instanceId: string } | null>(null);
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -42,12 +40,13 @@ export default function CreateInstance() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setLastResult(null);
 
     let parsed: object;
     try {
       parsed = JSON.parse(payload);
     } catch {
-      toast({ title: "Invalid JSON", description: "Payload must be valid JSON.", variant: "destructive" });
+      copyToast({ title: "Invalid JSON — Payload must be valid JSON.", variant: "destructive" });
       setSubmitting(false);
       return;
     }
@@ -60,21 +59,19 @@ export default function CreateInstance() {
 
       if (error) throw error;
 
-      // RPC now returns TABLE rows; take the first result
       const result = Array.isArray(data) ? data[0] : data;
 
       if (result?.error_code) {
-        toast({
-          title: "Blocked",
-          description: result.error_message || result.error_code,
+        copyToast({
+          title: "Blocked: " + (result.error_message || result.error_code),
           variant: "destructive",
         });
       } else {
-        toast({ title: "Instance created", description: `ID: ${result?.instance_id}` });
-        navigate("/instances");
+        setLastResult({ instanceId: result?.instance_id });
+        copyToast({ title: "Instance created", id: result?.instance_id, label: "Instance ID" });
       }
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      copyToast({ title: "Error: " + err.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -120,6 +117,13 @@ export default function CreateInstance() {
           </form>
         </CardContent>
       </Card>
+
+      {lastResult && (
+        <ResultPanel
+          title="Instance Created"
+          entries={[{ label: "Instance ID", value: lastResult.instanceId }]}
+        />
+      )}
     </div>
   );
 }

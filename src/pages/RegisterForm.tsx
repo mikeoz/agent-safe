@@ -5,56 +5,50 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useCopyToast } from "@/components/CopyToast";
+import { ResultPanel } from "@/components/ResultPanel";
 import { useNavigate } from "react-router-dom";
 
 export default function RegisterForm() {
-  const { toast } = useToast();
+  const { copyToast } = useCopyToast();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [formType, setFormType] = useState<string>("");
   const [schemaDef, setSchemaDef] = useState("{}");
   const [submitting, setSubmitting] = useState(false);
   const [mode, setMode] = useState<"system" | "member">("system");
+  const [lastResult, setLastResult] = useState<{ id: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setLastResult(null);
 
     let parsed: object;
     try {
       parsed = JSON.parse(schemaDef);
     } catch {
-      toast({ title: "Invalid JSON", description: "Schema definition must be valid JSON.", variant: "destructive" });
+      copyToast({ title: "Invalid JSON — Schema definition must be valid JSON.", variant: "destructive" });
       setSubmitting(false);
       return;
     }
 
     try {
       if (mode === "system") {
-        // System registration via edge function — actor_id = NULL
         const res = await supabase.functions.invoke("system-register-form", {
-          body: {
-            name,
-            form_type: formType,
-            schema_definition: parsed,
-          },
+          body: { name, form_type: formType, schema_definition: parsed },
         });
 
         if (res.error) throw res.error;
         const result = res.data as { id: string; error?: string };
         if (result.error) throw new Error(result.error);
 
-        toast({ title: "Form registered (system)", description: `ID: ${result.id}` });
+        setLastResult({ id: result.id });
+        copyToast({ title: "Form registered (system)", id: result.id, label: "Form ID" });
       } else {
-        // Member registration via RPC — actor_id = auth.uid()
         const { data, error } = await (supabase.rpc as any)("register_card_form", {
           p_name: name,
           p_form_type: formType,
@@ -62,12 +56,11 @@ export default function RegisterForm() {
         });
 
         if (error) throw error;
-        toast({ title: "Form registered", description: `ID: ${data}` });
+        setLastResult({ id: data });
+        copyToast({ title: "Form registered", id: data, label: "Form ID" });
       }
-
-      navigate("/forms");
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      copyToast({ title: "Error: " + err.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -127,6 +120,13 @@ export default function RegisterForm() {
           </form>
         </CardContent>
       </Card>
+
+      {lastResult && (
+        <ResultPanel
+          title="Form Registered"
+          entries={[{ label: "Form ID", value: lastResult.id }]}
+        />
+      )}
     </div>
   );
 }

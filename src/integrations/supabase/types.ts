@@ -199,7 +199,10 @@ export type Database = {
           p_invitee_locator?: string
           p_recipient_member_id?: string
         }
-        Returns: string
+        Returns: {
+          delivery_id: string
+          issuance_id: string
+        }[]
       }
       log_blocked_audit: {
         Args: {

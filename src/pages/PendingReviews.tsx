@@ -2,24 +2,19 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { CopyIdButton } from "@/components/CopyIdButton";
+import { useCopyToast } from "@/components/CopyToast";
 
-interface Issuance {
+interface Delivery {
   id: string;
-  instance_id: string;
-  issuer_id: string;
+  issuance_id: string;
   status: string;
-  issued_at: string;
-  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface InstanceDetail {
@@ -30,28 +25,30 @@ interface InstanceDetail {
 }
 
 export default function PendingReviews() {
-  const { toast } = useToast();
-  const [issuances, setIssuances] = useState<Issuance[]>([]);
+  const { copyToast } = useCopyToast();
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [instanceDetails, setInstanceDetails] = useState<Record<string, InstanceDetail>>({});
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState<string | null>(null);
 
-  const fetchIssuances = async () => {
-    const { data, error } = await supabase
-      .from("card_issuances")
+  const fetchDeliveries = async () => {
+    // Fetch deliveries where I'm the recipient
+    const { data, error } = await (supabase as any)
+      .from("card_deliveries")
       .select("*")
-      .order("issued_at", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setIssuances(data);
-      // Fetch instance details for issued/accepted ones via RPC
-      for (const iss of data) {
-        if (iss.status === "issued" || iss.status === "accepted") {
+      const deliveryData = data as Delivery[];
+      setDeliveries(deliveryData);
+      // Fetch instance details for pending/accepted deliveries via RPC
+      for (const del of deliveryData) {
+        if (del.status === "pending" || del.status === "accepted") {
           const { data: detail } = await supabase.rpc("get_issued_card_instance", {
-            p_issuance_id: iss.id,
+            p_issuance_id: del.issuance_id,
           });
           if (detail && detail.length > 0) {
-            setInstanceDetails((prev) => ({ ...prev, [iss.id]: detail[0] }));
+            setInstanceDetails((prev) => ({ ...prev, [del.issuance_id]: detail[0] }));
           }
         }
       }
@@ -60,7 +57,7 @@ export default function PendingReviews() {
   };
 
   useEffect(() => {
-    fetchIssuances();
+    fetchDeliveries();
   }, []);
 
   const handleResolve = async (issuanceId: string, resolution: "accepted" | "rejected") => {
@@ -73,10 +70,14 @@ export default function PendingReviews() {
 
       if (error) throw error;
 
-      toast({ title: resolution === "accepted" ? "Card accepted" : "Card rejected" });
-      fetchIssuances();
+      copyToast({
+        title: resolution === "accepted" ? "Card accepted" : "Card rejected",
+        id: issuanceId,
+        label: "Issuance ID",
+      });
+      fetchDeliveries();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      copyToast({ title: "Error: " + err.message, variant: "destructive" });
     } finally {
       setResolving(null);
     }
@@ -87,42 +88,52 @@ export default function PendingReviews() {
       <h1 className="text-xl font-semibold mb-6">Pending Reviews</h1>
       {loading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
-      ) : issuances.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No issuances to review.</p>
+      ) : deliveries.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No deliveries to review.</p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Issuance ID</TableHead>
+              <TableHead>Delivery ID</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Issuer</TableHead>
-              <TableHead>Issued</TableHead>
+              <TableHead>Issuance</TableHead>
+              <TableHead>Received</TableHead>
               <TableHead>Payload</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {issuances.map((iss) => {
-              const detail = instanceDetails[iss.id];
+            {deliveries.map((del) => {
+              const detail = instanceDetails[del.issuance_id];
               return (
-                <TableRow key={iss.id}>
-                  <TableCell className="font-mono text-xs">{iss.id.slice(0, 8)}…</TableCell>
+                <TableRow key={del.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono text-xs">{del.id.slice(0, 8)}…</span>
+                      <CopyIdButton value={del.id} />
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant={
-                        iss.status === "accepted"
+                        del.status === "accepted"
                           ? "default"
-                          : iss.status === "rejected"
+                          : del.status === "rejected"
                           ? "destructive"
                           : "secondary"
                       }
                     >
-                      {iss.status}
+                      {del.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{iss.issuer_id.slice(0, 8)}…</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono text-xs">{del.issuance_id.slice(0, 8)}…</span>
+                      <CopyIdButton value={del.issuance_id} />
+                    </div>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {new Date(iss.issued_at).toLocaleString()}
+                    {new Date(del.created_at).toLocaleString()}
                   </TableCell>
                   <TableCell>
                     {detail ? (
@@ -135,27 +146,27 @@ export default function PendingReviews() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      {iss.status === "issued" && (
+                      {del.status === "pending" && (
                         <>
                           <Button
                             size="sm"
-                            onClick={() => handleResolve(iss.id, "accepted")}
-                            disabled={resolving === iss.id}
+                            onClick={() => handleResolve(del.issuance_id, "accepted")}
+                            disabled={resolving === del.issuance_id}
                           >
                             Accept
                           </Button>
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => handleResolve(iss.id, "rejected")}
-                            disabled={resolving === iss.id}
+                            onClick={() => handleResolve(del.issuance_id, "rejected")}
+                            disabled={resolving === del.issuance_id}
                           >
                             Reject
                           </Button>
                         </>
                       )}
                       <Button asChild variant="ghost" size="sm">
-                        <Link to={`/audit?entityType=card_issuance&entityId=${iss.id}`}>
+                        <Link to={`/audit?entityType=card_issuance&entityId=${del.issuance_id}`}>
                           Audit
                         </Link>
                       </Button>
