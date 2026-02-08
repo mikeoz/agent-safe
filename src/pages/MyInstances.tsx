@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopyIdButton } from "@/components/CopyIdButton";
 import { useCopyToast } from "@/components/CopyToast";
+import { ResultPanel } from "@/components/ResultPanel";
 
 interface CardInstance {
   id: string;
@@ -49,6 +50,7 @@ export default function MyInstances() {
   const [recipientId, setRecipientId] = useState("");
   const [inviteeLocator, setInviteeLocator] = useState("");
   const [issuing, setIssuing] = useState(false);
+  const [lastIssuance, setLastIssuance] = useState<{ issuanceId: string; deliveryId: string } | null>(null);
 
   const fetchInstances = async () => {
     const { data, error } = await supabase
@@ -89,6 +91,7 @@ export default function MyInstances() {
     if (!hasMember && !hasInvitee) return;
 
     setIssuing(true);
+    setLastIssuance(null);
 
     try {
       const params: Record<string, string | undefined> = {
@@ -107,6 +110,11 @@ export default function MyInstances() {
 
       // RPC now returns TABLE rows
       const result = Array.isArray(data) ? data[0] : data;
+
+      setLastIssuance({
+        issuanceId: result?.issuance_id,
+        deliveryId: result?.delivery_id,
+      });
 
       copyToast({
         title: "Card issued",
@@ -253,6 +261,16 @@ export default function MyInstances() {
           )}
         </TabsContent>
       </Tabs>
+
+      {lastIssuance && (
+        <ResultPanel
+          title="Card Issued"
+          entries={[
+            { label: "Issuance ID", value: lastIssuance.issuanceId },
+            { label: "Delivery ID", value: lastIssuance.deliveryId },
+          ]}
+        />
+      )}
 
       <Dialog open={!!issueTarget} onOpenChange={(open) => !open && resetIssueDialog()}>
         <DialogContent>
