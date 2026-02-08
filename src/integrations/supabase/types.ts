@@ -197,6 +197,16 @@ export type Database = {
         }
         Returns: string
       }
+      log_blocked_audit: {
+        Args: {
+          p_action: string
+          p_actor_id: string
+          p_entity_id: string
+          p_entity_type: string
+          p_lifecycle_context: Json
+        }
+        Returns: undefined
+      }
       register_card_form: {
         Args: {
           p_form_type: Database["public"]["Enums"]["card_form_type"]
