@@ -20,8 +20,12 @@ interface Delivery {
 interface InstanceDetail {
   instance_id: string;
   form_id: string;
+  form_name: string;
+  form_type: string;
+  issuance_id: string;
+  issued_at: string;
   payload: any;
-  created_at: string;
+  status: string;
 }
 
 export default function PendingReviews() {

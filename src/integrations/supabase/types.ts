@@ -191,11 +191,11 @@ export type Database = {
     }
     Functions: {
       create_card_instance: {
-        Args: { p_form_id: string; p_payload: Json }
+        Args: { p_form_id: string; p_payload?: Json }
         Returns: {
-          error_code: string
-          error_message: string
-          instance_id: string
+          err_code: string
+          err_msg: string
+          id: string
         }[]
       }
       get_audit_trail: {
@@ -213,17 +213,20 @@ export type Database = {
       get_issued_card_instance: {
         Args: { p_issuance_id: string }
         Returns: {
-          created_at: string
           form_id: string
+          form_name: string
+          form_type: Database["public"]["Enums"]["card_form_type"]
           instance_id: string
+          issuance_id: string
+          issued_at: string
           payload: Json
+          status: Database["public"]["Enums"]["card_issuance_status"]
         }[]
       }
       get_my_recent_audit: {
         Args: { p_limit?: number }
         Returns: {
           action: string
-          actor_id: string
           created_at: string
           entity_id: string
           entity_type: string
@@ -235,28 +238,31 @@ export type Database = {
         Args: {
           p_instance_id: string
           p_invitee_locator?: string
-          p_recipient_member_id?: string
+          p_recipient_id?: string
         }
         Returns: {
           delivery_id: string
           issuance_id: string
         }[]
       }
-      log_blocked_audit: {
-        Args: {
-          p_action: string
-          p_actor_id: string
-          p_entity_id: string
-          p_entity_type: string
-          p_lifecycle_context: Json
-        }
-        Returns: undefined
+      json_matches_schema: {
+        Args: { instance: Json; schema: Json }
+        Returns: boolean
+      }
+      jsonb_matches_schema: {
+        Args: { instance: Json; schema: Json }
+        Returns: boolean
+      }
+      jsonschema_is_valid: { Args: { schema: Json }; Returns: boolean }
+      jsonschema_validation_errors: {
+        Args: { instance: Json; schema: Json }
+        Returns: string[]
       }
       register_card_form: {
         Args: {
           p_form_type: Database["public"]["Enums"]["card_form_type"]
           p_name: string
-          p_schema_definition: Json
+          p_schema_definition?: Json
         }
         Returns: string
       }
@@ -268,6 +274,7 @@ export type Database = {
     Enums: {
       card_form_status: "draft" | "registered"
       card_form_type: "entity" | "data" | "use"
+      card_issuance_status: "issued" | "accepted" | "rejected"
       issuance_status: "issued" | "accepted" | "rejected"
     }
     CompositeTypes: {
@@ -398,6 +405,7 @@ export const Constants = {
     Enums: {
       card_form_status: ["draft", "registered"],
       card_form_type: ["entity", "data", "use"],
+      card_issuance_status: ["issued", "accepted", "rejected"],
       issuance_status: ["issued", "accepted", "rejected"],
     },
   },

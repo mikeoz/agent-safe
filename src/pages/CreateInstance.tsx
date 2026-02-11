@@ -1,77 +1,67 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { useSearchParams } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { useCopyToast } from "@/components/CopyToast";
 import { ResultPanel } from "@/components/ResultPanel";
-
-interface CardForm {
-  id: string;
-  name: string;
-  form_type: string;
-}
+import { DynamicCardForm } from "@/components/card-form/DynamicCardForm";
+import type { CardFormRecord } from "@/components/card-form/types";
 
 export default function CreateInstance() {
   const { copyToast } = useCopyToast();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedFormId = searchParams.get("formId") || "";
 
-  const [forms, setForms] = useState<CardForm[]>([]);
-  const [formId, setFormId] = useState(preselectedFormId);
-  const [payload, setPayload] = useState("{}");
+  const [forms, setForms] = useState<CardFormRecord[]>([]);
+  const [selectedFormId, setSelectedFormId] = useState(preselectedFormId);
   const [submitting, setSubmitting] = useState(false);
   const [lastResult, setLastResult] = useState<{ instanceId: string } | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchForms = async () => {
-      const { data } = await supabase.from("card_forms").select("id, name, form_type").order("name");
-      if (data) setForms(data);
+      const { data } = await supabase
+        .from("card_forms")
+        .select("id, name, form_type, schema_definition")
+        .order("name");
+      if (data) setForms(data as CardFormRecord[]);
     };
     fetchForms();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const selectedForm = forms.find((f) => f.id === selectedFormId);
+
+  const handleSubmit = async (formId: string, payload: object) => {
     setSubmitting(true);
     setLastResult(null);
-
-    let parsed: object;
-    try {
-      parsed = JSON.parse(payload);
-    } catch {
-      copyToast({ title: "Invalid JSON — Payload must be valid JSON.", variant: "destructive" });
-      setSubmitting(false);
-      return;
-    }
+    setInlineError(null);
 
     try {
       const { data, error } = await (supabase.rpc as any)("create_card_instance", {
         p_form_id: formId,
-        p_payload: parsed,
+        p_payload: payload,
       });
 
       if (error) throw error;
 
       const result = Array.isArray(data) ? data[0] : data;
 
-      if (result?.error_code) {
-        copyToast({
-          title: "Blocked: " + (result.error_message || result.error_code),
-          variant: "destructive",
-        });
+      if (result?.err_code) {
+        const msg = result.err_code === "PAYLOAD_INVALID"
+          ? "The payload does not match the required CARD structure. Please check all required fields."
+          : `Blocked: ${result.err_msg || result.err_code}`;
+        setInlineError(msg);
       } else {
-        setLastResult({ instanceId: result?.instance_id });
-        copyToast({ title: "Instance created", id: result?.instance_id, label: "Instance ID" });
+        setLastResult({ instanceId: result?.id });
+        copyToast({ title: "Instance created", id: result?.id, label: "Instance ID" });
       }
     } catch (err: any) {
-      copyToast({ title: "Error: " + err.message, variant: "destructive" });
+      setInlineError("Error: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -80,43 +70,60 @@ export default function CreateInstance() {
   return (
     <div>
       <h1 className="text-xl font-semibold mb-6">Create CARD Instance</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">New Instance</CardTitle>
+
+      <Card className="mb-6">
+        <CardHeader className="py-4">
+          <CardTitle className="text-base">Select Registered Form</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Registered Form</Label>
-              <Select value={formId} onValueChange={setFormId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a form" />
-                </SelectTrigger>
-                <SelectContent>
-                  {forms.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.name} ({f.form_type})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="payload">Payload (JSON)</Label>
-              <Textarea
-                id="payload"
-                value={payload}
-                onChange={(e) => setPayload(e.target.value)}
-                className="font-mono text-sm min-h-[120px]"
-                required
-              />
-            </div>
-            <Button type="submit" disabled={submitting || !formId}>
-              {submitting ? "Creating…" : "Create Instance"}
-            </Button>
-          </form>
+          <div className="space-y-2">
+            <Label>Registered Form</Label>
+            <Select value={selectedFormId} onValueChange={(v) => { setSelectedFormId(v); setLastResult(null); setInlineError(null); }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a form…" />
+              </SelectTrigger>
+              <SelectContent>
+                {forms.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedForm && (
+              <div className="flex items-center gap-2 pt-1">
+                <Badge variant="outline">{selectedForm.form_type}</Badge>
+                <span className="text-sm text-muted-foreground">{selectedForm.name}</span>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {selectedForm && (
+        <Card>
+          <CardHeader className="py-4">
+            <CardTitle className="text-base">
+              New {selectedForm.form_type.charAt(0).toUpperCase() + selectedForm.form_type.slice(1)} CARD
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DynamicCardForm
+              key={selectedFormId}
+              formType={selectedForm.form_type}
+              formId={selectedForm.id}
+              onSubmit={handleSubmit}
+              submitting={submitting}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {inlineError && (
+        <div className="mt-4 rounded-md border border-destructive/50 bg-destructive/10 p-4">
+          <p className="text-sm text-destructive font-medium">{inlineError}</p>
+        </div>
+      )}
 
       {lastResult && (
         <ResultPanel
