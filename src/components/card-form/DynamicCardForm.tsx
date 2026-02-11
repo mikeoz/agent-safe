@@ -24,40 +24,75 @@ interface DynamicCardFormProps {
   formId: string;
   onSubmit: (formId: string, payload: object) => Promise<void>;
   submitting: boolean;
+  initialPayload?: any;
+  submitLabel?: string;
 }
 
 function generateUrn() {
   return `urn:uuid:${crypto.randomUUID()}`;
 }
 
-export function DynamicCardForm({ formType, formId, onSubmit, submitting }: DynamicCardFormProps) {
-  const [values, setValues] = useState<CardFormValues>(() => ({
-    cardId: generateUrn(),
-    cardType: CARD_TYPE_URLS[formType] || "",
-    cardTitle: "",
-    subjectId: "",
-    subjectKind: "person",
-    subjectDisplayName: "",
-    holderId: "",
-    holderKind: "person",
-    recipientId: "",
-    recipientKind: "person",
-    agentId: "",
-    agentOperatorId: "",
-    agentCapabilities: "",
-    claimId: generateUrn(),
-    claimCategory: formType === "entity" ? "attestation" : "data",
-    resourceUri: "",
-    resourceStorage: "",
-    allowedActions: ["read"],
-    purposeCode: "",
-    consentBasis: "explicit",
-    retentionMode: "none",
-    grantToId: "",
-    grantEffectiveFrom: "",
-    grantEffectiveTo: "",
-    lifecycleStatus: "draft",
-  }));
+export function DynamicCardForm({ formType, formId, onSubmit, submitting, initialPayload, submitLabel }: DynamicCardFormProps) {
+  const [values, setValues] = useState<CardFormValues>(() => {
+    const p = initialPayload;
+    if (p) {
+      // Pre-populate from existing payload, regenerating auto-generated IDs
+      return {
+        cardId: generateUrn(),
+        cardType: p.card?.type || CARD_TYPE_URLS[formType] || "",
+        cardTitle: p.card?.title || "",
+        subjectId: p.parties?.subject?.id || "",
+        subjectKind: p.parties?.subject?.kind || "person",
+        subjectDisplayName: p.parties?.subject?.display_name || "",
+        holderId: p.parties?.holder?.id || "",
+        holderKind: p.parties?.holder?.kind || "person",
+        recipientId: p.parties?.recipients?.[0]?.id || "",
+        recipientKind: p.parties?.recipients?.[0]?.kind || "person",
+        agentId: p.parties?.agents?.[0]?.id || "",
+        agentOperatorId: p.parties?.agents?.[0]?.operator?.id || "",
+        agentCapabilities: (p.parties?.agents?.[0]?.capabilities || []).join(", "),
+        claimId: generateUrn(),
+        claimCategory: p.claims?.items?.[0]?.category || (formType === "entity" ? "attestation" : "data"),
+        resourceUri: p.claims?.items?.[0]?.resource?.uri || "",
+        resourceStorage: p.claims?.items?.[0]?.resource?.storage || "",
+        allowedActions: p.claims?.items?.[0]?.constraints?.allowed_actions || ["read"],
+        purposeCode: p.claims?.items?.[0]?.constraints?.purpose?.[0]?.code || "",
+        consentBasis: p.policy?.consent?.basis || "explicit",
+        retentionMode: p.policy?.retention?.mode || "none",
+        grantToId: p.policy?.consent?.grants?.[0]?.to?.id || "",
+        grantEffectiveFrom: p.policy?.consent?.grants?.[0]?.effective?.from || "",
+        grantEffectiveTo: p.policy?.consent?.grants?.[0]?.effective?.to || "",
+        lifecycleStatus: p.lifecycle?.status || "draft",
+      };
+    }
+    return {
+      cardId: generateUrn(),
+      cardType: CARD_TYPE_URLS[formType] || "",
+      cardTitle: "",
+      subjectId: "",
+      subjectKind: "person",
+      subjectDisplayName: "",
+      holderId: "",
+      holderKind: "person",
+      recipientId: "",
+      recipientKind: "person",
+      agentId: "",
+      agentOperatorId: "",
+      agentCapabilities: "",
+      claimId: generateUrn(),
+      claimCategory: formType === "entity" ? "attestation" : "data",
+      resourceUri: "",
+      resourceStorage: "",
+      allowedActions: ["read"],
+      purposeCode: "",
+      consentBasis: "explicit",
+      retentionMode: "none",
+      grantToId: "",
+      grantEffectiveFrom: "",
+      grantEffectiveTo: "",
+      lifecycleStatus: "draft",
+    };
+  });
 
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -388,7 +423,7 @@ export function DynamicCardForm({ formType, formId, onSubmit, submitting }: Dyna
       )}
 
       <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-        {submitting ? "Creating…" : "Create CARD Instance"}
+        {submitting ? "Processing…" : (submitLabel || "Create CARD Instance")}
       </Button>
     </form>
   );

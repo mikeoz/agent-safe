@@ -117,22 +117,31 @@ export type Database = {
           created_at: string
           form_id: string
           id: string
+          is_current: boolean
           member_id: string
           payload: Json
+          superseded_at: string | null
+          superseded_by: string | null
         }
         Insert: {
           created_at?: string
           form_id: string
           id?: string
+          is_current?: boolean
           member_id: string
           payload: Json
+          superseded_at?: string | null
+          superseded_by?: string | null
         }
         Update: {
           created_at?: string
           form_id?: string
           id?: string
+          is_current?: boolean
           member_id?: string
           payload?: Json
+          superseded_at?: string | null
+          superseded_by?: string | null
         }
         Relationships: [
           {
@@ -140,6 +149,13 @@ export type Database = {
             columns: ["form_id"]
             isOneToOne: false
             referencedRelation: "card_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_instances_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "card_instances"
             referencedColumns: ["id"]
           },
         ]
@@ -210,6 +226,19 @@ export type Database = {
           lifecycle_context: Json
         }[]
       }
+      get_card_lineage: {
+        Args: { p_instance_id: string }
+        Returns: {
+          created_at: string
+          form_id: string
+          instance_id: string
+          is_current: boolean
+          payload: Json
+          superseded_at: string
+          superseded_by: string
+          version_number: number
+        }[]
+      }
       get_issued_card_instance: {
         Args: { p_issuance_id: string }
         Returns: {
@@ -270,11 +299,23 @@ export type Database = {
         Args: { p_issuance_id: string; p_resolution: string }
         Returns: undefined
       }
+      revoke_card_issuance: {
+        Args: { p_issuance_id: string }
+        Returns: undefined
+      }
+      supersede_card_instance: {
+        Args: { p_new_payload: Json; p_old_instance_id: string }
+        Returns: {
+          err_code: string
+          err_msg: string
+          new_instance_id: string
+        }[]
+      }
     }
     Enums: {
       card_form_status: "draft" | "registered"
       card_form_type: "entity" | "data" | "use"
-      card_issuance_status: "issued" | "accepted" | "rejected"
+      card_issuance_status: "issued" | "accepted" | "rejected" | "revoked"
       issuance_status: "issued" | "accepted" | "rejected"
     }
     CompositeTypes: {
@@ -405,7 +446,7 @@ export const Constants = {
     Enums: {
       card_form_status: ["draft", "registered"],
       card_form_type: ["entity", "data", "use"],
-      card_issuance_status: ["issued", "accepted", "rejected"],
+      card_issuance_status: ["issued", "accepted", "rejected", "revoked"],
       issuance_status: ["issued", "accepted", "rejected"],
     },
   },
