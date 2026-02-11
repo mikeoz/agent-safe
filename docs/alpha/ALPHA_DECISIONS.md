@@ -174,4 +174,28 @@ This document is part of the OPN4 system architecture.
 
 ***
 
+## Decision A-011: Revise CARD form pre-population is incomplete
+
+**Context**
+The Revise CARD flow (S2-4) opens the creation form pre-populated from the
+existing instance payload. Only card.title pre-populates correctly — nested
+fields (parties, claims, policy) render blank, requiring the user to re-enter
+all values manually.
+
+**Alpha Choice**
+Accepted as a known UX limitation for Alpha. The underlying database behavior
+is correct — supersede_card_instance() creates the new version and preserves
+the old one as intended. The form pre-population failure is a frontend binding
+issue in DynamicCardForm's initialPayload prop handling for nested jsonb fields.
+
+**Implication**
+A user revising a CARD must re-enter all fields except the title. This is
+friction but not a trust failure. The correct version lineage is preserved
+regardless of how the form is filled.
+
+**MVP Transition**
+Fix DynamicCardForm to correctly bind all nested initialPayload fields to
+their corresponding input components, including parties, claims, policy,
+and lifecycle sections.
+
 *OPN4 Alpha Decisions Log v1.0 \| Opn.li / Openly Trusted Services \| February 11, 2026 \| Confidential*
