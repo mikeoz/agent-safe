@@ -1,14 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,91 +11,54 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AuditTimeline } from "@/components/audit/AuditTimeline";
 
 interface AuditEntry {
   id: string;
   action: string;
-  actor_id: string | null;
+  actor_id?: string | null;
   entity_type: string;
   entity_id: string;
   lifecycle_context: any;
   created_at: string;
 }
 
-function AuditTable({ entries }: { entries: AuditEntry[] }) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Action</TableHead>
-          <TableHead>Actor</TableHead>
-          <TableHead>Entity</TableHead>
-          <TableHead>Timestamp</TableHead>
-          <TableHead>Context</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {entries.map((entry) => (
-          <TableRow key={entry.id}>
-            <TableCell>
-              <Badge variant="outline">{entry.action}</Badge>
-            </TableCell>
-            <TableCell className="font-mono text-xs">
-              {entry.actor_id ? entry.actor_id.slice(0, 8) + "…" : "system"}
-            </TableCell>
-            <TableCell className="font-mono text-xs">
-              {entry.entity_type}:{entry.entity_id.slice(0, 8)}…
-            </TableCell>
-            <TableCell className="text-sm text-muted-foreground">
-              {new Date(entry.created_at).toLocaleString()}
-            </TableCell>
-            <TableCell>
-              <pre className="text-xs font-mono max-w-[300px] whitespace-pre-wrap">
-                {entry.lifecycle_context
-                  ? JSON.stringify(entry.lifecycle_context, null, 2)
-                  : "—"}
-              </pre>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
 export default function AuditTrail() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get("tab") || "entity";
+  const initialTab = searchParams.get("tab") || (searchParams.get("entityId") ? "entity" : "my-recent");
   const [tab, setTab] = useState(initialTab);
 
-  // Entity lookup state
-  const [entityType, setEntityType] = useState(searchParams.get("entityType") || "card_form");
+  // Entity lookup
+  const [entityType, setEntityType] = useState(searchParams.get("entityType") || "card_instance");
   const [entityId, setEntityId] = useState(searchParams.get("entityId") || "");
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // My recent events state
+  // My recent
   const [myEntries, setMyEntries] = useState<AuditEntry[]>([]);
   const [myLoading, setMyLoading] = useState(false);
   const [myFetched, setMyFetched] = useState(false);
+  const [myError, setMyError] = useState<string | null>(null);
 
   const fetchTrail = async () => {
     if (!entityId.trim()) return;
     setLoading(true);
     setFetched(true);
+    setError(null);
 
-    const { data, error } = await supabase.rpc("get_audit_trail", {
+    const { data, error: rpcError } = await supabase.rpc("get_audit_trail", {
       p_entity_type: entityType,
       p_entity_id: entityId.trim(),
     });
 
-    if (!error && data) {
-      setEntries(data as AuditEntry[]);
-    } else {
+    if (rpcError) {
+      setError(rpcError.message);
       setEntries([]);
+    } else {
+      setEntries((data as AuditEntry[]) || []);
     }
     setLoading(false);
   };
@@ -111,23 +66,27 @@ export default function AuditTrail() {
   const fetchMyRecent = async () => {
     setMyLoading(true);
     setMyFetched(true);
+    setMyError(null);
 
-    const { data, error } = await (supabase.rpc as any)("get_my_recent_audit", {
+    const { data, error: rpcError } = await (supabase.rpc as any)("get_my_recent_audit", {
       p_limit: 50,
     });
 
-    if (!error && data) {
-      setMyEntries(data as AuditEntry[]);
-    } else {
+    if (rpcError) {
+      setMyError(rpcError.message);
       setMyEntries([]);
+    } else {
+      setMyEntries((data as AuditEntry[]) || []);
     }
     setMyLoading(false);
   };
 
-  // Auto-fetch if entity params provided
+  // Auto-fetch entity trail if params present, or auto-load my-recent
   useEffect(() => {
     if (searchParams.get("entityId")) {
       fetchTrail();
+    } else {
+      fetchMyRecent();
     }
   }, []);
 
@@ -143,9 +102,23 @@ export default function AuditTrail() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="entity">By Entity</TabsTrigger>
-          <TabsTrigger value="my-recent">My Recent Events</TabsTrigger>
+          <TabsTrigger value="my-recent">My Activity</TabsTrigger>
+          <TabsTrigger value="entity">CARD History</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="my-recent" className="mt-4">
+          <div className="mb-4">
+            <Button onClick={fetchMyRecent} disabled={myLoading} variant="outline" size="sm">
+              {myLoading ? "Loading…" : myFetched ? "Refresh" : "Load My Activity"}
+            </Button>
+          </div>
+
+          {myError && (
+            <p className="text-sm text-destructive mb-4">{myError}</p>
+          )}
+
+          <AuditTimeline entries={myEntries} />
+        </TabsContent>
 
         <TabsContent value="entity" className="mt-4">
           <form onSubmit={handleEntitySubmit} className="flex items-end gap-4 mb-6">
@@ -156,9 +129,9 @@ export default function AuditTrail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="card_form">card_form</SelectItem>
-                  <SelectItem value="card_instance">card_instance</SelectItem>
-                  <SelectItem value="card_issuance">card_issuance</SelectItem>
+                  <SelectItem value="card_form">CARD Form</SelectItem>
+                  <SelectItem value="card_instance">CARD Instance</SelectItem>
+                  <SelectItem value="card_issuance">CARD Issuance</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -168,7 +141,7 @@ export default function AuditTrail() {
                 id="entityId"
                 value={entityId}
                 onChange={(e) => setEntityId(e.target.value)}
-                placeholder="UUID"
+                placeholder="Paste a CARD ID here"
                 className="font-mono text-sm"
               />
             </div>
@@ -177,23 +150,16 @@ export default function AuditTrail() {
             </Button>
           </form>
 
-          {fetched && !loading && entries.length === 0 && (
-            <p className="text-muted-foreground text-sm">No audit entries found (or not authorized).</p>
+          {error && (
+            <p className="text-sm text-destructive mb-4">{error}</p>
           )}
-          {entries.length > 0 && <AuditTable entries={entries} />}
-        </TabsContent>
 
-        <TabsContent value="my-recent" className="mt-4">
-          <div className="mb-4">
-            <Button onClick={fetchMyRecent} disabled={myLoading}>
-              {myLoading ? "Loading…" : myFetched ? "Refresh" : "Load My Recent Events"}
-            </Button>
-          </div>
-
-          {myFetched && !myLoading && myEntries.length === 0 && (
-            <p className="text-muted-foreground text-sm">No audit entries found for your account.</p>
+          {fetched && !loading && (
+            <AuditTimeline
+              entries={entries}
+              emptyMessage="No audit entries found for this entity (or not authorized)."
+            />
           )}
-          {myEntries.length > 0 && <AuditTable entries={myEntries} />}
         </TabsContent>
       </Tabs>
     </div>
