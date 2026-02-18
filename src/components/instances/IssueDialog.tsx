@@ -47,19 +47,35 @@ export function IssueDialog({ instanceId, onClose, onSuccess }: IssueDialogProps
     try {
       const params: Record<string, string | undefined> = { p_instance_id: instanceId };
       if (recipientMode === "member") {
-        params.p_recipient_id = recipientId.trim();
+        params.p_recipient_member_id = recipientId.trim();
       } else {
         params.p_invitee_locator = inviteeLocator.trim();
       }
 
+      console.log('Calling issue_card with:', params);
+
       const { data, error } = await (supabase.rpc as any)("issue_card", params);
-      if (error) throw error;
+
+      console.log('issue_card response:', { data, error });
+
+      if (error) {
+        console.error('issue_card failed:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        copyToast({ title: "Error: " + error.message, variant: "destructive" });
+        return;
+      }
 
       const result = Array.isArray(data) ? data[0] : data;
       copyToast({ title: "Card issued", id: result?.issuance_id, label: "Issuance ID" });
       onSuccess(result?.issuance_id, result?.delivery_id);
       handleClose();
     } catch (err: any) {
+      console.error('Unexpected error in handleIssue:', err);
       copyToast({ title: "Error: " + err.message, variant: "destructive" });
     } finally {
       setIssuing(false);
