@@ -31,54 +31,38 @@ export default function MyInstances() {
   const [lastIssuance, setLastIssuance] = useState<{ issuanceId: string; deliveryId: string } | null>(null);
 
   const fetchInstances = async () => {
-    const { data, error } = await (supabase as any)
-      .from("card_instances")
-      .select("*, card_forms(name, form_type)")
-      .eq("is_current", true)
-      .order("created_at", { ascending: false });
-    if (!error && data) {
-      const items = data as CardInstanceItem[];
-      setInstances(items);
-
-      // Fetch version numbers for instances that have been superseded into
-      // We check which ones have a superseded predecessor by calling lineage lazily
-      // But we can detect multi-version by checking if any other instance points to this one
-      // For efficiency, query instances that have superseded_by set pointing to our current IDs
-      const currentIds = items.map((i) => i.id);
-      if (currentIds.length > 0) {
-        const { data: predecessors } = await (supabase as any)
-          .from("card_instances")
-          .select("superseded_by")
-          .in("superseded_by", currentIds);
-
-        if (predecessors && predecessors.length > 0) {
-          // For those that have predecessors, fetch lineage to get version numbers
-          const idsWithHistory = new Set(predecessors.map((p) => p.superseded_by).filter(Boolean));
-          const versionMap: Record<string, number> = {};
-
-          await Promise.all(
-            Array.from(idsWithHistory).map(async (id) => {
-              try {
-                const { data: lineage } = await supabase.rpc("get_card_lineage", {
-                  p_instance_id: id as string,
-                });
-                if (lineage) {
-                  const current = (lineage as any[]).find((v) => v.is_current);
-                  if (current) {
-                    versionMap[id as string] = current.version_number;
-                  }
-                }
-              } catch {
-                // skip
-              }
-            })
-          );
-
-          setVersionNumbers(versionMap);
-        }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No authenticated user');
+        setLoading(false);
+        return;
       }
+      console.log('Fetching instances for user:', user.id);
+
+      const { data, error } = await supabase
+        .from("card_instances")
+        .select("*, card_forms(name, form_type)")
+        .eq("member_id", user.id)
+        .order("created_at", { ascending: false });
+
+      console.log('Query result:', { data, error });
+
+      if (error) {
+        console.error('CreatedTab query error:', error);
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
+        console.log(`Found ${data.length} instances`);
+        setInstances(data as unknown as CardInstanceItem[]);
+      }
+    } catch (err) {
+      console.error('Unexpected error in fetchInstances:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchDeliveries = async () => {
