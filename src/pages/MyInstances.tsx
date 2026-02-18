@@ -11,6 +11,7 @@ import { CopyIdButton } from "@/components/CopyIdButton";
 import { ResultPanel } from "@/components/ResultPanel";
 import { InstanceCard, type CardInstanceItem } from "@/components/instances/InstanceCard";
 import { IssueDialog } from "@/components/instances/IssueDialog";
+import { IssuedTab } from "@/components/instances/IssuedTab";
 
 interface Delivery {
   id: string;
@@ -30,13 +31,13 @@ export default function MyInstances() {
   const [lastIssuance, setLastIssuance] = useState<{ issuanceId: string; deliveryId: string } | null>(null);
 
   const fetchInstances = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("card_instances")
       .select("*, card_forms(name, form_type)")
       .eq("is_current", true)
       .order("created_at", { ascending: false });
     if (!error && data) {
-      const items = data as unknown as CardInstanceItem[];
+      const items = data as CardInstanceItem[];
       setInstances(items);
 
       // Fetch version numbers for instances that have been superseded into
@@ -45,7 +46,7 @@ export default function MyInstances() {
       // For efficiency, query instances that have superseded_by set pointing to our current IDs
       const currentIds = items.map((i) => i.id);
       if (currentIds.length > 0) {
-        const { data: predecessors } = await supabase
+        const { data: predecessors } = await (supabase as any)
           .from("card_instances")
           .select("superseded_by")
           .in("superseded_by", currentIds);
@@ -106,6 +107,7 @@ export default function MyInstances() {
       <Tabs defaultValue="created">
         <TabsList>
           <TabsTrigger value="created">Created</TabsTrigger>
+          <TabsTrigger value="issued">Issued</TabsTrigger>
           <TabsTrigger value="received">Received</TabsTrigger>
         </TabsList>
 
@@ -132,6 +134,10 @@ export default function MyInstances() {
               ))}
             </div>
           )}
+        </TabsContent>
+        {/* ── Issued Tab ── */}
+        <TabsContent value="issued" className="mt-4">
+          <IssuedTab />
         </TabsContent>
 
         {/* ── Received Tab ── */}

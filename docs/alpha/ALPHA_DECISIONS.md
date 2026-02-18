@@ -200,22 +200,105 @@ and lifecycle sections.
 
 _OPN4 Alpha Decisions Log v1.0 \| Opn.li / Openly Trusted Services \| February 11, 2026 \| Confidential_
 
-**DELIVERABLE 1: A-014 Decision Entry**
+---
 
-A complete Alpha Decision entry modeled on the OPN3 format. It documents:
+## Decision A-014: Issuance-Level Revocation (Sprint 2)
 
-- Why revocation is issuance-level (not instance-level)
+**Date:** 2026-02-18
+**Context:** Sprint 2 — CARD Lifecycle (Supersession + Revocation)
+**Decision Category:** Lifecycle Enforcement
+**Implements:** LIFE-INV-03 ("Termination revokes, not deletes")
 
-- Why only the issuer can revoke (recipient has reject)
+### The Decision
 
-- Why records are preserved (soft deletion via status)
+Revocation operates at the **issuance level**, not the instance or form level.
 
-- The valid status transitions and what's prevented
+When a Member revokes a CARD issuance:
 
-- Implementation details (RPC signature, enum extension, RLS impact)
+1. **Status updates:** Sets `card_issuances.status = 'revoked'` and mirrors this to `card_deliveries.status = 'revoked'`
+2. **Audit event:** Logs `card_revoked` with full lifecycle context (issuer, recipient, instance_id, revoked_at timestamp)
+3. **Access removal:** Recipient immediately loses read access via RLS (`get_issued_card_instance` filters on status IN ('issued', 'accepted'))
+4. **Data preservation:** No records are deleted — issuance, delivery, and instance remain queryable for audit purposes
+5. **Issuer authority:** Only the issuer can revoke (recipient cannot revoke their own access — they can only reject before acceptance)
 
-- UI flow with confirmation dialog
+### Rationale
 
-- What was deferred for post-Alpha (grace periods, revocation reasons, cascade rules)
+**Why issuance-level, not instance-level?** A single CARD instance can be issued to multiple recipients. Revoking the instance would terminate all relationships simultaneously, which violates the principle of explicit, directional trust. Revocation must be **per-relationship**, not per-asset.
 
-- All closure criteria with checkmarks
+**Why preserve the records?** Deletion erases accountability. In any dispute or audit scenario, the question "what access did this person have and when was it terminated" must be answerable from the audit trail alone. Soft deletion (status = revoked) maintains this without zombie data.
+
+**Why issuer-only revocation?** The recipient already has `reject` as their termination mechanism. Revocation is the issuer's equivalent: "I no longer authorize this sharing." Allowing recipient-initiated revocation creates ambiguity in the audit trail about who terminated the relationship.
+
+### Implementation Details
+
+**New RPC:** `revoke_card_issuance(p_issuance_id uuid) RETURNS void`
+
+- SECURITY DEFINER — bypasses RLS to update both issuances and deliveries
+- Validates caller is the issuer (via `card_issuances.issuer_id = auth.uid()`)
+- Validates current status is 'issued' or 'accepted' (cannot revoke rejected)
+- Updates both `card_issuances.status` and `card_deliveries.status` atomically
+- Writes `card_revoked` audit event with `revoked_at` timestamp
+
+**Enum extension:**
+
+```sql
+ALTER TYPE public.issuance_status ADD VALUE IF NOT EXISTS 'revoked';
+```
+
+**Valid status transitions:**
+
+- issued → accepted (recipient accepts)
+- issued → rejected (recipient rejects)
+- issued → revoked (issuer revokes before acceptance)
+- accepted → revoked (issuer revokes after acceptance)
+
+**Invalid (prevented by RPC):**
+
+- rejected → revoked (rejected is terminal — issuer had no active grant to revoke)
+- revoked → anything (revoked is terminal — no "un-revoke" in Alpha)
+
+**RLS impact:**
+
+- `get_issued_card_instance()` already filters: `status IN ('issued', 'accepted')`
+- Revoked issuances automatically excluded from recipient's view
+- Issuer retains visibility via their own My Instances → Issued list
+
+### UI Implementation (Sprint 2)
+
+**Where:** My Instances → Issued tab (issuer's view of CARDs they've issued)
+
+**What:** Revoke button next to each issued/accepted CARD
+
+**Flow:**
+
+1. User clicks Revoke → confirmation dialog appears
+2. Dialog text: "Revoke access for [recipient]? This cannot be undone."
+3. On confirm → calls `revoke_card_issuance(issuance_id)`
+4. On success → status badge updates to "Revoked" with timestamp
+5. Audit timeline (if visible) shows `card_revoked` event
+
+**Error handling:**
+
+- RPC raises exception → show error inline
+- Common errors: "Not authorized" (wrong user), "Invalid status" (already revoked/rejected)
+
+### Deferred for Post-Alpha
+
+- **Grace periods:** `revoke_effective_at` for delayed enforcement
+- **Revocation reasons:** Structured reason codes (user_request, policy_violation, security_incident, relationship_ended, time_expired)
+- **Cascade rules:** Downstream sharing termination when foundational CARD is revoked
+- **Partial revocation:** Revoking specific claims within a multi-claim CARD
+- **Re-issuance workflow:** "Re-issue previous" button that pre-fills the recipient
+
+### Sprint 2 Closure Criteria (All Met)
+
+✅ Issuer can revoke access to any issued CARD they own
+✅ Revocation is immediate (recipient loses access on next query)
+✅ Revocation is logged as `card_revoked` with full context
+✅ No data is deleted (audit trail preserved)
+✅ Revoked issuances invisible to recipient but queryable by issuer
+✅ UI shows Revoke button with confirmation dialog
+✅ UI reflects revoked status with badge and timestamp
+✅ Audit timeline shows `card_revoked` as lifecycle event
+
+_OPN4 Alpha Decisions Log v1.0 | Opn.li / Openly Trusted Services | February 18, 2026 | Confidential_

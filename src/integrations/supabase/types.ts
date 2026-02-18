@@ -117,31 +117,22 @@ export type Database = {
           created_at: string
           form_id: string
           id: string
-          is_current: boolean
           member_id: string
           payload: Json
-          superseded_at: string | null
-          superseded_by: string | null
         }
         Insert: {
           created_at?: string
           form_id: string
           id?: string
-          is_current?: boolean
           member_id: string
           payload: Json
-          superseded_at?: string | null
-          superseded_by?: string | null
         }
         Update: {
           created_at?: string
           form_id?: string
           id?: string
-          is_current?: boolean
           member_id?: string
           payload?: Json
-          superseded_at?: string | null
-          superseded_by?: string | null
         }
         Relationships: [
           {
@@ -149,13 +140,6 @@ export type Database = {
             columns: ["form_id"]
             isOneToOne: false
             referencedRelation: "card_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_instances_superseded_by_fkey"
-            columns: ["superseded_by"]
-            isOneToOne: false
-            referencedRelation: "card_instances"
             referencedColumns: ["id"]
           },
         ]
@@ -207,11 +191,11 @@ export type Database = {
     }
     Functions: {
       create_card_instance: {
-        Args: { p_form_id: string; p_payload?: Json }
+        Args: { p_form_id: string; p_payload: Json }
         Returns: {
-          err_code: string
-          err_msg: string
-          id: string
+          error_code: string
+          error_message: string
+          instance_id: string
         }[]
       }
       get_audit_trail: {
@@ -242,20 +226,17 @@ export type Database = {
       get_issued_card_instance: {
         Args: { p_issuance_id: string }
         Returns: {
+          created_at: string
           form_id: string
-          form_name: string
-          form_type: Database["public"]["Enums"]["card_form_type"]
           instance_id: string
-          issuance_id: string
-          issued_at: string
           payload: Json
-          status: Database["public"]["Enums"]["card_issuance_status"]
         }[]
       }
       get_my_recent_audit: {
         Args: { p_limit?: number }
         Returns: {
           action: string
+          actor_id: string
           created_at: string
           entity_id: string
           entity_type: string
@@ -267,7 +248,7 @@ export type Database = {
         Args: {
           p_instance_id: string
           p_invitee_locator?: string
-          p_recipient_id?: string
+          p_recipient_member_id?: string
         }
         Returns: {
           delivery_id: string
@@ -287,11 +268,22 @@ export type Database = {
         Args: { instance: Json; schema: Json }
         Returns: string[]
       }
+      opn_jsonb_path_exists: {
+        Args: { data: Json; dot_path: string }
+        Returns: boolean
+      }
+      opn_validate_card_payload: {
+        Args: {
+          p_form: Database["public"]["Tables"]["card_forms"]["Row"]
+          p_payload: Json
+        }
+        Returns: undefined
+      }
       register_card_form: {
         Args: {
           p_form_type: Database["public"]["Enums"]["card_form_type"]
           p_name: string
-          p_schema_definition?: Json
+          p_schema_definition: Json
         }
         Returns: string
       }
