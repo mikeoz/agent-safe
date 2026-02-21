@@ -77,10 +77,12 @@ Deno.serve(async (req: Request) => {
         const latestIssuance = entityIssuances[0];
         if (latestIssuance.status === "accepted") {
           entity_status = "active";
-        } else if (latestIssuance.status === "rejected") {
+        } else if (latestIssuance.status === "revoked" || latestIssuance.status === "rejected") {
           entity_status = "revoked";
-        } else {
+        } else if (latestIssuance.status === "issued") {
           entity_status = "suspended";
+        } else {
+          entity_status = "unknown";
         }
       } else {
         entity_status = "active";
