@@ -2,3 +2,6 @@ project_id = "biejnguqnejzwmypotez"
 
 [functions.system-register-form]
 verify_jwt = false
+
+[functions.verify-card]
+verify_jwt = false

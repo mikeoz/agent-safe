@@ -318,6 +318,9 @@ export type Database = {
           new_instance_id: string
         }[]
       }
+      verify_agent_trust:
+        | { Args: { p_agent_id: string; p_card_ref?: string }; Returns: Json }
+        | { Args: { params: Json }; Returns: Json }
     }
     Enums: {
       card_form_status: "draft" | "registered"
