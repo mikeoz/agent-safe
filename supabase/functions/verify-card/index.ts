@@ -208,10 +208,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (auditErr) {
-      console.error("Audit log insert failed:", auditErr.message);
-    }
-
     // STEP 4: Response
     const responseBody = {
       agent_id,
