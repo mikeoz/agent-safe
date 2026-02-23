@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/AppLayout";
 import Auth from "./pages/Auth";
@@ -13,6 +13,7 @@ import MyInstances from "./pages/MyInstances";
 import PendingReviews from "./pages/PendingReviews";
 import AuditTrail from "./pages/AuditTrail";
 import NewUseCard from "./pages/NewUseCard";
+import MyFrontDoor from "./pages/MyFrontDoor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
               </AuthGuard>
             }
           >
+            <Route path="/" element={<MyFrontDoor />} />
             <Route path="/forms" element={<RegisteredForms />} />
             <Route path="/forms/register" element={<RegisterForm />} />
             <Route path="/instances" element={<MyInstances />} />
@@ -40,7 +42,6 @@ const App = () => (
             <Route path="/audit" element={<AuditTrail />} />
             <Route path="/cards/use/new" element={<NewUseCard />} />
           </Route>
-          <Route path="/" element={<Navigate to="/forms" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

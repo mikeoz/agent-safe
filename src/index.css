@@ -47,6 +47,15 @@
     --sidebar-accent-foreground: 220 20% 10%;
     --sidebar-border: 220 15% 85%;
     --sidebar-ring: 180 80% 32%;
+
+    --vault-navy: 213 64% 34%;
+    --vault-navy-foreground: 0 0% 100%;
+    --vault-green: 146 63% 26%;
+    --vault-green-foreground: 0 0% 100%;
+    --vault-red: 0 100% 40%;
+    --vault-red-foreground: 0 0% 100%;
+    --vault-amber: 38 85% 38%;
+    --vault-amber-foreground: 0 0% 100%;
   }
 }
 
