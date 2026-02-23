@@ -5,11 +5,9 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const navLinks = [
-  { to: "/forms", label: "Forms" },
-  { to: "/forms/register", label: "Register Form" },
-  { to: "/instances", label: "My Instances" },
-  { to: "/reviews", label: "Reviews" },
-  { to: "/audit", label: "Audit" },
+  { to: "/", label: "My Front Door" },
+  { to: "/cards/use/new", label: "Write a Permission Slip" },
+  { to: "/audit", label: "Activity Log" },
 ];
 
 export function AppLayout() {
@@ -27,8 +25,8 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav className="border-b border-border px-6 py-3 flex items-center gap-6 overflow-x-auto">
-        <Link to="/forms" className="font-mono text-sm text-primary font-semibold shrink-0">
-          OPN4
+        <Link to="/" className="font-mono text-sm text-primary font-semibold shrink-0">
+          Openly Vault
         </Link>
         <div className="flex gap-4 text-sm">
           {navLinks.map((link) => (

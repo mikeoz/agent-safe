@@ -65,6 +65,22 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        "vault-navy": {
+          DEFAULT: "hsl(var(--vault-navy))",
+          foreground: "hsl(var(--vault-navy-foreground))",
+        },
+        "vault-green": {
+          DEFAULT: "hsl(var(--vault-green))",
+          foreground: "hsl(var(--vault-green-foreground))",
+        },
+        "vault-red": {
+          DEFAULT: "hsl(var(--vault-red))",
+          foreground: "hsl(var(--vault-red-foreground))",
+        },
+        "vault-amber": {
+          DEFAULT: "hsl(var(--vault-amber))",
+          foreground: "hsl(var(--vault-amber-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
