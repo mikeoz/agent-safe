@@ -339,10 +339,16 @@ export default function NewUseCard() {
 
       const instanceId = row.instance_id;
 
-      // Step B: issue card
+      // Step B: issue card to the currently authenticated user
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        setIssueError("You must be signed in to issue a permission.");
+        setIssuing(false);
+        return;
+      }
       const { data: issueData, error: issueErr } = await supabase.rpc("issue_card", {
         p_instance_id: instanceId,
-        p_recipient_member_id: DEMO_USER_ID,
+        p_recipient_member_id: currentUser.id,
       });
 
       if (issueErr) {
