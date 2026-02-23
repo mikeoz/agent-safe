@@ -250,9 +250,9 @@ export default function MyFrontDoor() {
     try {
       const { data } = await supabase
         .from("card_issuances")
-        .select("id, status, created_at, card_instances(id, payload)")
+        .select("id, status, issued_at, card_instances(id, payload)")
         .in("status", ["issued", "accepted"])
-        .order("created_at", { ascending: false });
+        .order("issued_at", { ascending: false });
       setIssuances(data || []);
     } catch {
       /* ignore */
