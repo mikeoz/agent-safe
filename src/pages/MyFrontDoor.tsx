@@ -88,12 +88,16 @@ function StatCard({
 function PermissionCard({
   issuance,
   onRevoke,
+  onActivate,
 }: {
   issuance: any;
   onRevoke: (id: string, name: string) => void;
+  onActivate: (id: string, name: string) => void;
 }) {
   const payload = issuance.card_instances?.payload as any;
   if (!payload) return null;
+
+  const isPending = issuance.status === "issued";
 
   const agentName =
     payload?.parties?.agents?.[0]?.display_name ||
@@ -107,27 +111,42 @@ function PermissionCard({
       .filter(Boolean);
 
   const expiresIso = payload?.lifecycle?.effective?.to;
-  const expiry = expiresIso ? timeUntil(expiresIso) : null;
+  const expiry = !isPending && expiresIso ? timeUntil(expiresIso) : null;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+    <div className={`rounded-lg border p-4 space-y-2 ${isPending ? "border-vault-amber/40 bg-vault-amber/5" : "border-border bg-card"}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <KeyRound className="h-4 w-4 text-vault-green" />
+          <KeyRound className={`h-4 w-4 ${isPending ? "text-vault-amber" : "text-vault-green"}`} />
           <span className="font-semibold text-sm">{agentName}</span>
         </div>
-        <Button
-          variant="destructive"
-          size="sm"
-          className="bg-vault-red hover:bg-vault-red/90 text-vault-red-foreground"
-          onClick={() => onRevoke(issuance.id, agentName)}
-        >
-          Close the door
-        </Button>
+        {isPending ? (
+          <Button
+            size="sm"
+            className="bg-vault-green hover:bg-vault-green/90 text-vault-green-foreground"
+            onClick={() => onActivate(issuance.id, agentName)}
+          >
+            Activate permission
+          </Button>
+        ) : (
+          <Button
+            variant="destructive"
+            size="sm"
+            className="bg-vault-red hover:bg-vault-red/90 text-vault-red-foreground"
+            onClick={() => onRevoke(issuance.id, agentName)}
+          >
+            Close the door
+          </Button>
+        )}
       </div>
       {resources.length > 0 && (
         <p className="text-xs text-muted-foreground">
           <span className="font-medium">Can see:</span> {resources.join(", ")}
+        </p>
+      )}
+      {isPending && (
+        <p className="text-xs font-medium text-vault-amber">
+          ⏳ Waiting for your approval
         </p>
       )}
       {expiry && (
@@ -217,7 +236,7 @@ export default function MyFrontDoor() {
       const { count } = await supabase
         .from("card_issuances")
         .select("id", { count: "exact", head: true })
-        .eq("status", "accepted");
+        .in("status", ["issued", "accepted"]);
       setActivePerms(count ?? 0);
     } catch {
       /* ignore */
@@ -232,7 +251,7 @@ export default function MyFrontDoor() {
       const { data } = await supabase
         .from("card_issuances")
         .select("id, status, created_at, card_instances(id, payload)")
-        .eq("status", "accepted")
+        .in("status", ["issued", "accepted"])
         .order("created_at", { ascending: false });
       setIssuances(data || []);
     } catch {
@@ -291,6 +310,30 @@ export default function MyFrontDoor() {
       });
     } finally {
       setRevoking(false);
+    }
+  };
+
+  // ── Activate (accept pending) ───────────────────────────────────────
+  const handleActivate = async (id: string, name: string) => {
+    try {
+      const { error } = await supabase.rpc("resolve_card_issuance", {
+        p_issuance_id: id,
+        p_resolution: "accepted",
+      });
+      if (error) throw error;
+      toast({
+        title: `Permission activated. ${name} now has access.`,
+        description: "You can close the door at any time from this panel.",
+      });
+      fetchPermissions();
+      fetchStats();
+      fetchFeed();
+    } catch (err: any) {
+      toast({
+        title: "Something went wrong",
+        description: err?.message || "Could not activate permission. Try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -386,6 +429,7 @@ export default function MyFrontDoor() {
                   key={iss.id}
                   issuance={iss}
                   onRevoke={(id, name) => setRevokeTarget({ id, name })}
+                  onActivate={handleActivate}
                 />
               ))}
               <Button
