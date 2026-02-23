@@ -315,12 +315,18 @@ export default function MyFrontDoor() {
 
   // ── Activate (accept pending) ───────────────────────────────────────
   const handleActivate = async (id: string, name: string) => {
+    console.log("[Activate] issuance_id:", id, "agent:", name);
+    console.log("[Activate] auth user:", user?.id, user?.email);
     try {
-      const { error } = await supabase.rpc("resolve_card_issuance", {
+      const { data, error } = await supabase.rpc("resolve_card_issuance", {
         p_issuance_id: id,
         p_resolution: "accepted",
       });
-      if (error) throw error;
+      console.log("[Activate] RPC response — data:", data, "error:", error);
+      if (error) {
+        console.error("[Activate] Supabase error object:", JSON.stringify(error, null, 2));
+        throw error;
+      }
       toast({
         title: `Permission activated. ${name} now has access.`,
         description: "You can close the door at any time from this panel.",
@@ -329,10 +335,16 @@ export default function MyFrontDoor() {
       fetchStats();
       fetchFeed();
     } catch (err: any) {
+      console.error("[Activate] Caught error:", err);
+      console.error("[Activate] Error message:", err?.message);
+      console.error("[Activate] Error details:", err?.details);
+      console.error("[Activate] Error hint:", err?.hint);
+      console.error("[Activate] Error code:", err?.code);
       toast({
-        title: "Something went wrong",
-        description: err?.message || "Could not activate permission. Try again.",
+        title: "Could not activate permission",
+        description: err?.message || "Unknown error. Check browser console for details.",
         variant: "destructive",
+        duration: 8000,
       });
     }
   };
