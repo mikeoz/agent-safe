@@ -160,19 +160,17 @@ export default function NewUseCard() {
   });
 
   // Fetch data cards
+  const DATA_FORM_ID = "147a8e87-46f6-4145-b27e-87abbf8cdb77";
   const { data: dataCards = [], isLoading: loadingData } = useQuery({
     queryKey: ["data-cards-scope"],
     queryFn: async () => {
-      const ids = [
-        "7851f2fa-dfb2-4a82-841e-ad09716a5b5b",
-        "dcb1b137-b975-4dbc-97d0-0dba5c425b90",
-        "53a1dd45-7133-4708-8851-a482d40f8b38",
-      ];
       const { data, error } = await supabase
         .from("card_instances")
         .select("id, payload")
-        .in("id", ids);
+        .eq("form_id", DATA_FORM_ID)
+        .eq("is_current", true);
       if (error) throw error;
+      console.log("[NewUseCard] Data cards query result:", data);
       return (data ?? []).map((row): DataCardOption => {
         const p = row.payload as any;
         return {
@@ -425,6 +423,12 @@ export default function NewUseCard() {
               <div className="flex items-center gap-2 text-muted-foreground py-8">
                 <Loader2 className="w-4 h-4 animate-spin" /> Loading data cards…
               </div>
+            ) : dataCards.length === 0 ? (
+              <Alert>
+                <AlertDescription>
+                  No data resources found. Make sure you have Data CARDs created for your account.
+                </AlertDescription>
+              </Alert>
             ) : (
               <div className="grid gap-3">
                 {dataCards.map((dc) => {
