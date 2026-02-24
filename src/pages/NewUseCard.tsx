@@ -145,9 +145,18 @@ export default function NewUseCard() {
         .from("card_instances")
         .select("id, payload")
         .eq("form_id", ENTITY_FORM_ID)
-        .eq("is_current", true);
+        .eq("is_current", true)
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []).map((row): AgentOption => {
+      // Deduplicate by payload.card.id — query is ordered by created_at DESC
+      const seen = new Set<string>();
+      const unique = (data ?? []).filter((row) => {
+        const cardId = (row.payload as any)?.card?.id;
+        if (!cardId || seen.has(cardId)) return false;
+        seen.add(cardId);
+        return true;
+      });
+      return unique.map((row): AgentOption => {
         const p = row.payload as any;
         return {
           id: row.id,
