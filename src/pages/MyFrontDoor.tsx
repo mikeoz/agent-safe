@@ -353,14 +353,7 @@ export default function MyFrontDoor() {
 
   return (
     <div className="space-y-0">
-      {/* ── SECTION 1: HEADER BAR ──────────────────────────────────────── */}
-      <div className="bg-vault-navy text-vault-navy-foreground px-6 py-4 flex items-center justify-between flex-wrap gap-2 -mx-[calc((100vw-var(--container-max,56rem))/2+2rem)] -mt-8 px-[calc((100vw-56rem)/2+2rem)] max-[56rem]:px-6">
-        <span className="font-bold text-[22px]">Openly Vault</span>
-        <span className="italic text-blue-200 text-sm hidden sm:inline">
-          My data. Your AI. My control.
-        </span>
-        <span className="text-sm opacity-80">{user?.email}</span>
-      </div>
+      {/* Banner moved to AppLayout — removed from page */}
 
       {/* ── SECTION 2: TWO-COLUMN ──────────────────────────────────────── */}
       <div className="grid lg:grid-cols-2 gap-6 pt-6">
@@ -514,7 +507,7 @@ export default function MyFrontDoor() {
         <Button
           variant="link"
           className="text-vault-navy p-0 h-auto text-xs"
-          onClick={() => navigate("/audit")}
+          onClick={() => navigate("/activity")}
         >
           View full activity log <ExternalLink className="h-3 w-3 ml-1" />
         </Button>

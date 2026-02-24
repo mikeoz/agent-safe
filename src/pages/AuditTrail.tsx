@@ -98,7 +98,7 @@ export default function AuditTrail() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold mb-6">Audit Trail</h1>
+      <h1 className="text-xl font-semibold mb-6">Activity Log</h1>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
