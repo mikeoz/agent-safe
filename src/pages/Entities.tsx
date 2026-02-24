@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CopyIdButton } from "@/components/CopyIdButton";
+import { EntityDetailPanel } from "@/components/entities/EntityDetailPanel";
 
 const ENTITY_FORM_ID = "96583b62-2ee5-40e3-a633-fb14e88e888b";
 
@@ -33,6 +34,7 @@ export default function Entities() {
   usePageTitle(useLocation().pathname);
   const [entities, setEntities] = useState<EntityRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<EntityRow | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -100,7 +102,7 @@ export default function Entities() {
             const agentId = subject?.id || "";
 
             return (
-              <Card key={row.id} className="border-l-4 overflow-hidden" style={{ borderLeftColor: "#1F4E8C" }}>
+              <Card key={row.id} className="border-l-4 overflow-hidden cursor-pointer hover:shadow-md transition-shadow" style={{ borderLeftColor: "#1F4E8C" }} onClick={() => setSelected(row)}>
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-base leading-tight">{name}</span>
@@ -145,6 +147,12 @@ export default function Entities() {
           })}
         </div>
       )}
+
+      <EntityDetailPanel
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        entity={selected}
+      />
     </div>
   );
 }
