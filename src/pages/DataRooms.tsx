@@ -60,18 +60,53 @@ export default function DataRooms() {
         return;
       }
 
-      // Count accepted issuances per instance
-      const instanceIds = instances.map((i) => i.id);
-      const { data: issuances } = await supabase
+      // Count agents with active access via Use CARDs referencing each data room
+      const { data: acceptedIssuances } = await supabase
         .from("card_issuances")
-        .select("instance_id, status")
-        .in("instance_id", instanceIds)
+        .select("id, instance_id")
         .eq("status", "accepted");
 
       const countMap: Record<string, number> = {};
-      (issuances || []).forEach((iss) => {
-        countMap[iss.instance_id] = (countMap[iss.instance_id] || 0) + 1;
-      });
+
+      if (acceptedIssuances && acceptedIssuances.length > 0) {
+        const issuanceInstanceIds = acceptedIssuances.map((i) => i.instance_id);
+        const { data: useInstances } = await supabase
+          .from("card_instances")
+          .select("id, payload, form_id")
+          .in("id", issuanceInstanceIds);
+
+        const { data: useForms } = await supabase
+          .from("card_forms")
+          .select("id")
+          .eq("form_type", "use");
+
+        const useFormIds = new Set((useForms || []).map((f) => f.id));
+
+        // For each data room, check which Use CARDs reference it
+        instances.forEach((inst) => {
+          const p = inst.payload as any;
+          const dataTitle = p?.card?.title || "";
+          const resourceDN = p?.claims?.items?.[0]?.resource?.display_name || "";
+          const resourceUri = p?.claims?.items?.[0]?.resource?.uri || "";
+          let count = 0;
+
+          (useInstances || []).forEach((ui: any) => {
+            if (!useFormIds.has(ui.form_id)) return;
+            const claims = ui.payload?.claims?.items || [];
+            const refs = claims.some((c: any) => {
+              const dn = c.resource?.display_name || "";
+              const uri = c.resource?.uri || "";
+              return (
+                (dn && (dn === dataTitle || dn === resourceDN)) ||
+                (uri && uri === resourceUri)
+              );
+            });
+            if (refs) count++;
+          });
+
+          countMap[inst.id] = count;
+        });
+      }
 
       setRooms(
         instances.map((inst) => ({

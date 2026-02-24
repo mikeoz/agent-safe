@@ -108,48 +108,53 @@ export function DataRoomDetailPanel({ open, onClose, room }: DataRoomDetailPanel
     async function loadDetails() {
       setLoading(true);
 
-      // 1. Find agents with active access via Use CARDs referencing this resource URI
-      const resourceUri = claim?.resource?.uri;
+      // 1. Find agents with active access via Use CARDs that reference this data room
+      const dataTitle = card.title || "";
+      const resourceDisplayName = claim?.resource?.display_name || "";
+      const resourceUri = claim?.resource?.uri || "";
       const agentList: AgentAccess[] = [];
 
-      if (resourceUri) {
-        const { data: issuances } = await supabase
-          .from("card_issuances")
-          .select("id, instance_id")
-          .eq("status", "accepted");
+      const { data: issuances } = await supabase
+        .from("card_issuances")
+        .select("id, instance_id, resolved_at")
+        .eq("status", "accepted");
 
-        if (issuances && issuances.length > 0) {
-          const instanceIds = issuances.map((i) => i.instance_id);
-          const { data: instances } = await supabase
-            .from("card_instances")
-            .select("id, payload, form_id")
-            .in("id", instanceIds);
+      if (issuances && issuances.length > 0) {
+        const instanceIds = issuances.map((i) => i.instance_id);
+        const { data: instances } = await supabase
+          .from("card_instances")
+          .select("id, payload, form_id")
+          .in("id", instanceIds);
 
-          const { data: forms } = await supabase
-            .from("card_forms")
-            .select("id")
-            .eq("form_type", "use");
+        const { data: forms } = await supabase
+          .from("card_forms")
+          .select("id")
+          .eq("form_type", "use");
 
-          const useFormIds = new Set((forms || []).map((f) => f.id));
+        const useFormIds = new Set((forms || []).map((f) => f.id));
 
-          (instances || []).forEach((inst: any) => {
-            if (!useFormIds.has(inst.form_id)) return;
-            const claims = inst.payload?.claims?.items || [];
-            const refsResource = claims.some(
-              (c: any) => c.resource?.uri === resourceUri
+        (instances || []).forEach((inst: any) => {
+          if (!useFormIds.has(inst.form_id)) return;
+          const claims = inst.payload?.claims?.items || [];
+          const refsResource = claims.some((c: any) => {
+            const dn = c.resource?.display_name || "";
+            const uri = c.resource?.uri || "";
+            return (
+              (dn && (dn === dataTitle || dn === resourceDisplayName)) ||
+              (uri && uri === resourceUri)
             );
-            if (!refsResource) return;
-
-            const agentParties = inst.payload?.parties?.agents || [];
-            const agentName =
-              agentParties[0]?.display_name ||
-              inst.payload?.card?.title ||
-              "Unknown agent";
-            const expiresAt =
-              inst.payload?.policy?.consent?.grants?.[0]?.effective?.to || null;
-            agentList.push({ agentName, expiresAt });
           });
-        }
+          if (!refsResource) return;
+
+          const agentParties = inst.payload?.parties?.agents || [];
+          const agentName =
+            agentParties[0]?.display_name ||
+            inst.payload?.card?.title ||
+            "Unknown agent";
+          const expiresAt =
+            inst.payload?.policy?.consent?.grants?.[0]?.effective?.to || null;
+          agentList.push({ agentName, expiresAt });
+        });
       }
 
       // 2. Audit trail for this instance
