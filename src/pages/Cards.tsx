@@ -20,6 +20,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { KeyRound, Clock, ChevronDown } from "lucide-react";
+import { PermissionSlipDetailPanel } from "@/components/cards/PermissionSlipDetailPanel";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 function timeUntil(iso: string): { label: string; urgent: boolean; expired: boolean } {
@@ -57,11 +58,13 @@ function PermissionRow({
   variant,
   onRevoke,
   onActivate,
+  onClick,
 }: {
   issuance: any;
   variant: "active" | "pending" | "closed";
   onRevoke?: (id: string, name: string) => void;
   onActivate?: (id: string, name: string) => void;
+  onClick?: () => void;
 }) {
   const payload = issuance.card_instances?.payload as any;
   if (!payload) return null;
@@ -73,13 +76,14 @@ function PermissionRow({
 
   return (
     <div
-      className={`rounded-lg border p-4 space-y-2 ${
+      className={`rounded-lg border p-4 space-y-2 cursor-pointer transition-colors hover:border-primary/40 ${
         variant === "pending"
           ? "border-vault-amber/40 bg-vault-amber/5"
           : variant === "closed"
             ? "border-border/60 bg-muted/30"
             : "border-border bg-card"
       }`}
+      onClick={onClick}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -100,7 +104,7 @@ function PermissionRow({
             variant="destructive"
             size="sm"
             className="bg-vault-red hover:bg-vault-red/90 text-vault-red-foreground"
-            onClick={() => onRevoke(issuance.id, agentName)}
+            onClick={(e) => { e.stopPropagation(); onRevoke(issuance.id, agentName); }}
           >
             Close the door
           </Button>
@@ -109,7 +113,7 @@ function PermissionRow({
           <Button
             size="sm"
             className="bg-vault-green hover:bg-vault-green/90 text-vault-green-foreground"
-            onClick={() => onActivate(issuance.id, agentName)}
+            onClick={(e) => { e.stopPropagation(); onActivate(issuance.id, agentName); }}
           >
             Activate permission
           </Button>
@@ -168,6 +172,9 @@ export default function Cards() {
   const [closed, setClosed] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [closedOpen, setClosedOpen] = useState(false);
+
+  // Detail panel
+  const [detailIssuance, setDetailIssuance] = useState<any | null>(null);
 
   // Revoke dialog
   const [revokeTarget, setRevokeTarget] = useState<{ id: string; name: string } | null>(null);
@@ -304,6 +311,7 @@ export default function Cards() {
                     issuance={iss}
                     variant="active"
                     onRevoke={(id, name) => setRevokeTarget({ id, name })}
+                    onClick={() => setDetailIssuance(iss)}
                   />
                 ))}
               </div>
@@ -325,6 +333,7 @@ export default function Cards() {
                     issuance={iss}
                     variant="pending"
                     onActivate={handleActivate}
+                    onClick={() => setDetailIssuance(iss)}
                   />
                 ))}
               </div>
@@ -348,7 +357,7 @@ export default function Cards() {
                 <CollapsibleContent>
                   <div className="space-y-3 pt-1">
                     {closed.map((iss) => (
-                      <PermissionRow key={iss.id} issuance={iss} variant="closed" />
+                      <PermissionRow key={iss.id} issuance={iss} variant="closed" onClick={() => setDetailIssuance(iss)} />
                     ))}
                   </div>
                 </CollapsibleContent>
@@ -382,6 +391,21 @@ export default function Cards() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Detail Panel */}
+      <PermissionSlipDetailPanel
+        open={!!detailIssuance}
+        onClose={() => setDetailIssuance(null)}
+        issuance={detailIssuance}
+        onRevoke={(id, name) => {
+          setDetailIssuance(null);
+          setRevokeTarget({ id, name });
+        }}
+        onActivate={(id, name) => {
+          setDetailIssuance(null);
+          handleActivate(id, name);
+        }}
+      />
     </div>
   );
 }
