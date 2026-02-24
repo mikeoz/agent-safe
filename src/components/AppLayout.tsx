@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import opnLogo from "@/assets/Opnli_head_logo_CLEAN.png";
 
 const navLinks = [
   { to: "/", label: "My Front Door" },
@@ -25,8 +26,9 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav className="border-b border-border px-6 py-3 flex items-center gap-6 overflow-x-auto">
-        <Link to="/" className="font-mono text-sm text-primary font-semibold shrink-0">
-          Openly Vault
+        <Link to="/" className="flex items-center gap-2 shrink-0">
+          <img src={opnLogo} alt="Openly logo" className="h-7 w-auto" />
+          <span className="font-mono text-sm text-primary font-semibold">Openly Vault</span>
         </Link>
         <div className="flex gap-4 text-sm">
           {navLinks.map((link) => (
