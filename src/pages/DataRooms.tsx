@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Lock } from "lucide-react";
+import { DataRoomDetailPanel } from "@/components/data/DataRoomDetailPanel";
 
 const DATA_FORM_ID = "147a8e87-46f6-4145-b27e-87abbf8cdb77";
 
@@ -40,6 +41,7 @@ export default function DataRooms() {
   usePageTitle(useLocation().pathname);
   const [rooms, setRooms] = useState<DataRoom[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<DataRoom | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -114,7 +116,8 @@ export default function DataRooms() {
             return (
               <Card
                 key={room.id}
-                className="border-l-4 border-l-vault-green overflow-hidden"
+                className="border-l-4 border-l-vault-green overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setSelected(room)}
               >
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -158,6 +161,12 @@ export default function DataRooms() {
           })}
         </div>
       )}
+
+      <DataRoomDetailPanel
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        room={selected}
+      />
     </div>
   );
 }
