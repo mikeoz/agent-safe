@@ -5,10 +5,11 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import opnLogo from "@/assets/Opnli_head_logo_CLEAN.png";
 
-const navLinks = [
-  { to: "/", label: "My Front Door" },
-  { to: "/cards/use/new", label: "Write a Permission Slip" },
-  { to: "/audit", label: "Activity Log" },
+const navTabs = [
+  { to: "/entities", label: "Entities & Agents" },
+  { to: "/data", label: "Data Rooms" },
+  { to: "/cards", label: "CARDs" },
+  { to: "/activity", label: "Activities & Reports" },
 ];
 
 export function AppLayout() {
@@ -25,27 +26,30 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* ── Top nav ── */}
       <nav className="border-b border-border px-6 py-3 flex items-center gap-6 overflow-x-auto">
-        <Link to="/" className="flex items-center gap-2 shrink-0">
-          <img src={opnLogo} alt="Openly logo" className="h-7 w-auto" />
-          <span className="font-mono text-sm text-primary font-semibold">Openly Vault</span>
+        <Link to="/" className="flex items-center gap-3 shrink-0">
+          <img src={opnLogo} alt="Opn.li" className="h-8 w-auto cursor-pointer" />
+          <span className="text-xs text-muted-foreground hover:text-foreground transition-colors">home</span>
         </Link>
-        <div className="flex gap-4 text-sm">
-          {navLinks.map((link) => (
+
+        <div className="flex gap-5 text-sm">
+          {navTabs.map((tab) => (
             <Link
-              key={link.to}
-              to={link.to}
+              key={tab.to}
+              to={tab.to}
               className={cn(
-                "whitespace-nowrap transition-colors",
-                location.pathname === link.to
-                  ? "text-foreground"
+                "whitespace-nowrap transition-colors py-1",
+                location.pathname === tab.to || location.pathname.startsWith(tab.to + "/")
+                  ? "text-foreground font-bold underline underline-offset-4"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {link.label}
+              {tab.label}
             </Link>
           ))}
         </div>
+
         <div className="ml-auto flex items-center gap-3 shrink-0">
           <button
             onClick={copyUserId}
@@ -59,6 +63,14 @@ export function AppLayout() {
           </Button>
         </div>
       </nav>
+
+      {/* ── Navy banner ── */}
+      <div className="bg-vault-navy text-vault-navy-foreground px-6 py-3 flex items-center justify-between">
+        <div />
+        <span className="italic text-blue-200 text-sm">My data. Your AI. My control.</span>
+        <span className="text-sm opacity-80">{user?.email}</span>
+      </div>
+
       <main className="container py-8 max-w-4xl">
         <Outlet />
       </main>

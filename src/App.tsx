@@ -6,14 +6,18 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/AppLayout";
 import Auth from "./pages/Auth";
+import MyFrontDoor from "./pages/MyFrontDoor";
+import Entities from "./pages/Entities";
+import DataRooms from "./pages/DataRooms";
+import Cards from "./pages/Cards";
+import Activity from "./pages/Activity";
+import NewUseCard from "./pages/NewUseCard";
 import RegisteredForms from "./pages/RegisteredForms";
 import RegisterForm from "./pages/RegisterForm";
 import CreateInstance from "./pages/CreateInstance";
 import MyInstances from "./pages/MyInstances";
 import PendingReviews from "./pages/PendingReviews";
 import AuditTrail from "./pages/AuditTrail";
-import NewUseCard from "./pages/NewUseCard";
-import MyFrontDoor from "./pages/MyFrontDoor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,13 +38,18 @@ const App = () => (
             }
           >
             <Route path="/" element={<MyFrontDoor />} />
+            <Route path="/entities" element={<Entities />} />
+            <Route path="/data" element={<DataRooms />} />
+            <Route path="/cards" element={<Cards />} />
+            <Route path="/cards/use/new" element={<NewUseCard />} />
+            <Route path="/activity" element={<Activity />} />
+            {/* Legacy technical routes kept for now */}
             <Route path="/forms" element={<RegisteredForms />} />
             <Route path="/forms/register" element={<RegisterForm />} />
             <Route path="/instances" element={<MyInstances />} />
             <Route path="/instances/create" element={<CreateInstance />} />
             <Route path="/reviews" element={<PendingReviews />} />
             <Route path="/audit" element={<AuditTrail />} />
-            <Route path="/cards/use/new" element={<NewUseCard />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
