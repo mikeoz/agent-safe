@@ -37,16 +37,26 @@ export default function Entities() {
   useEffect(() => {
     async function load() {
       setLoading(true);
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id || "";
+
       const { data } = await supabase
         .from("card_instances")
         .select("id, payload, created_at")
         .eq("form_id", ENTITY_FORM_ID)
         .order("created_at", { ascending: false });
 
-      // Deduplicate by payload.card.id — keep first (most recent)
+      const rows = (data || []) as EntityRow[];
+
+      // Filter out the current user's own identity card
+      const filtered = rows.filter(
+        (row) => !row.payload?.parties?.subject?.id?.includes(userId)
+      );
+
+      // Deduplicate by payload.card.id — keep first (most recent, since ordered DESC)
       const seen = new Set<string>();
       const deduped: EntityRow[] = [];
-      (data || []).forEach((row: any) => {
+      filtered.forEach((row) => {
         const cardId = row.payload?.card?.id;
         if (cardId && seen.has(cardId)) return;
         if (cardId) seen.add(cardId);
