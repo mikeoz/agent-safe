@@ -128,10 +128,10 @@ export default function Activity() {
 
       {/* Summary chips */}
       <div className="flex flex-wrap gap-3">
-        <StatChip icon="🚪" label="Front door checks" count={doorChecks} />
-        <StatChip icon="📋" label="Permissions sent" count={permsSent} />
-        <StatChip icon="✅" label="Permissions activated" count={permsActivated} />
-        <StatChip icon="🔒" label="Doors closed" count={doorsClosed} />
+        <StatChip icon="🚪" label="Door checks today" count={doorChecks} />
+        <StatChip icon="📋" label="Permission slips sent" count={permsSent} />
+        <StatChip icon="✅" label="Ever activated" count={permsActivated} />
+        <StatChip icon="🔒" label="Ever closed" count={doorsClosed} />
       </div>
 
       {/* Filter bar */}
