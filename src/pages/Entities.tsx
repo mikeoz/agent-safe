@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CopyIdButton } from "@/components/CopyIdButton";
 import { EntityDetailPanel } from "@/components/entities/EntityDetailPanel";
+import { QueryState } from "@/components/QueryState";
 
 const ENTITY_FORM_ID = "96583b62-2ee5-40e3-a633-fb14e88e888b";
 
@@ -34,42 +35,46 @@ export default function Entities() {
   usePageTitle(useLocation().pathname);
   const [entities, setEntities] = useState<EntityRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<EntityRow | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData?.user?.id || "";
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id || "";
 
-      const { data } = await supabase
-        .from("card_instances")
-        .select("id, payload, created_at")
-        .eq("form_id", ENTITY_FORM_ID)
-        .order("created_at", { ascending: false });
+    const { data, error: queryError } = await supabase
+      .from("card_instances")
+      .select("id, payload, created_at")
+      .eq("form_id", ENTITY_FORM_ID)
+      .order("created_at", { ascending: false });
 
-      const rows = (data || []) as EntityRow[];
-
-      // Filter out the current user's own identity card
-      const filtered = rows.filter(
-        (row) => !row.payload?.parties?.subject?.id?.includes(userId)
-      );
-
-      // Deduplicate by payload.card.id — keep first (most recent, since ordered DESC)
-      const seen = new Set<string>();
-      const deduped: EntityRow[] = [];
-      filtered.forEach((row) => {
-        const cardId = row.payload?.card?.id;
-        if (cardId && seen.has(cardId)) return;
-        if (cardId) seen.add(cardId);
-        deduped.push(row);
-      });
-
-      setEntities(deduped);
+    if (queryError) {
+      setError(queryError.message);
       setLoading(false);
+      return;
     }
-    load();
+
+    const rows = (data || []) as EntityRow[];
+    const filtered = rows.filter(
+      (row) => !row.payload?.parties?.subject?.id?.includes(userId)
+    );
+
+    const seen = new Set<string>();
+    const deduped: EntityRow[] = [];
+    filtered.forEach((row) => {
+      const cardId = row.payload?.card?.id;
+      if (cardId && seen.has(cardId)) return;
+      if (cardId) seen.add(cardId);
+      deduped.push(row);
+    });
+
+    setEntities(deduped);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div>
@@ -78,15 +83,13 @@ export default function Entities() {
         Everyone in your trust network — people, organizations, and agents.
       </p>
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : entities.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            No entities or agents registered yet.
-          </p>
-        </div>
-      ) : (
+      <QueryState
+        loading={loading}
+        error={error}
+        onRetry={load}
+        isEmpty={entities.length === 0}
+        emptyMessage="No entities or agents registered yet."
+      >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {entities.map((row) => {
             const p = row.payload as any;
@@ -116,25 +119,16 @@ export default function Entities() {
                       </span>
                     )}
                   </div>
-
-                  {operator && (
-                    <p className="text-xs text-muted-foreground">Operated by: {operator}</p>
-                  )}
-
+                  {operator && <p className="text-xs text-muted-foreground">Operated by: {operator}</p>}
                   {caps && Array.isArray(caps) && caps.length > 0 && (
                     <p className="text-xs text-muted-foreground">
                       Capabilities: {caps.map((c: string) => c.charAt(0).toUpperCase() + c.slice(1)).join(", ")}
                     </p>
                   )}
-
-                  {modelStr && (
-                    <p className="text-xs text-muted-foreground">Model: {modelStr}</p>
-                  )}
-
+                  {modelStr && <p className="text-xs text-muted-foreground">Model: {modelStr}</p>}
                   <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground/70">
                     <span>Registered {formatDate(row.created_at)}</span>
                   </div>
-
                   {agentId && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground/60">
                       <span className="font-mono">{truncateUrn(agentId)}</span>
@@ -146,13 +140,9 @@ export default function Entities() {
             );
           })}
         </div>
-      )}
+      </QueryState>
 
-      <EntityDetailPanel
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        entity={selected}
-      />
+      <EntityDetailPanel open={!!selected} onClose={() => setSelected(null)} entity={selected} />
     </div>
   );
 }

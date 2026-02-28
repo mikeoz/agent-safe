@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { QueryState } from "@/components/QueryState";
 
 // ── Event metadata ───────────────────────────────────────────────────────
 const EVENT_META: Record<string, { icon: string; color: string }> = {
@@ -76,6 +77,7 @@ export default function Activity() {
   usePageTitle(useLocation().pathname);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
 
   const [doorChecks, setDoorChecks] = useState(0);
@@ -83,32 +85,38 @@ export default function Activity() {
   const [permsActivated, setPermsActivated] = useState(0);
   const [doorsClosed, setDoorsClosed] = useState(0);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const { data } = await supabase
-        .from("audit_log")
-        .select("id, action, entity_id, lifecycle_context, created_at")
-        .order("created_at", { ascending: false });
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: queryError } = await supabase
+      .from("audit_log")
+      .select("id, action, entity_id, lifecycle_context, created_at")
+      .order("created_at", { ascending: false });
 
-      const rows = data || [];
-      setEvents(rows);
-
-      let dc = 0, ps = 0, pa = 0, dcl = 0;
-      rows.forEach((r: any) => {
-        if (r.action === "verification_queried") dc++;
-        if (r.action === "card_issued") ps++;
-        if (r.action === "card_accepted" || r.action === "issuance_accepted") pa++;
-        if (r.action === "card_revoked" || r.action === "issuance_revoked") dcl++;
-      });
-      setDoorChecks(dc);
-      setPermsSent(ps);
-      setPermsActivated(pa);
-      setDoorsClosed(dcl);
+    if (queryError) {
+      setError(queryError.message);
       setLoading(false);
+      return;
     }
-    load();
+
+    const rows = data || [];
+    setEvents(rows);
+
+    let dc = 0, ps = 0, pa = 0, dcl = 0;
+    rows.forEach((r: any) => {
+      if (r.action === "verification_queried") dc++;
+      if (r.action === "card_issued") ps++;
+      if (r.action === "card_accepted" || r.action === "issuance_accepted") pa++;
+      if (r.action === "card_revoked" || r.action === "issuance_revoked") dcl++;
+    });
+    setDoorChecks(dc);
+    setPermsSent(ps);
+    setPermsActivated(pa);
+    setDoorsClosed(dcl);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const filtered =
     filter === "all"
@@ -148,18 +156,17 @@ export default function Activity() {
         ))}
       </div>
 
-      {/* Timeline */}
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            {events.length === 0
-              ? "No activity recorded yet. Activity appears here as you use Opn.li Agent Safe."
-              : "No events match this filter."}
-          </p>
-        </div>
-      ) : (
+      <QueryState
+        loading={loading}
+        error={error}
+        onRetry={load}
+        isEmpty={filtered.length === 0}
+        emptyMessage={
+          events.length === 0
+            ? "No activity recorded yet. Activity appears here as you use Opn.li Agent Safe."
+            : "No events match this filter."
+        }
+      >
         <div className="relative pl-6">
           <div className="absolute left-2.5 top-1 bottom-1 w-px bg-border" />
           <div className="space-y-0">
@@ -182,9 +189,9 @@ export default function Activity() {
                 </div>
               );
             })}
-          </div>
         </div>
-      )}
+        </div>
+      </QueryState>
     </div>
   );
 }
