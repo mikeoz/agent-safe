@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/collapsible";
 import { KeyRound, Clock, ChevronDown } from "lucide-react";
 import { PermissionSlipDetailPanel } from "@/components/cards/PermissionSlipDetailPanel";
+import { QueryState } from "@/components/QueryState";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 function timeUntil(iso: string): { label: string; urgent: boolean; expired: boolean } {
@@ -171,6 +172,7 @@ export default function Cards() {
   const [pending, setPending] = useState<any[]>([]);
   const [closed, setClosed] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [closedOpen, setClosedOpen] = useState(false);
 
   // Detail panel
@@ -182,25 +184,32 @@ export default function Cards() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    setError(null);
 
-    // Fetch all issuances joined to use-card instances
-    const { data: accepted } = await supabase
+    const { data: accepted, error: e1 } = await supabase
       .from("card_issuances")
       .select("id, status, issued_at, resolved_at, card_instances(id, payload)")
       .eq("status", "accepted")
       .order("issued_at", { ascending: false });
 
-    const { data: issued } = await supabase
+    const { data: issued, error: e2 } = await supabase
       .from("card_issuances")
       .select("id, status, issued_at, resolved_at, card_instances(id, payload)")
       .eq("status", "issued")
       .order("issued_at", { ascending: false });
 
-    const { data: revoked } = await supabase
+    const { data: revoked, error: e3 } = await supabase
       .from("card_issuances")
       .select("id, status, issued_at, resolved_at, card_instances(id, payload)")
       .eq("status", "revoked")
       .order("issued_at", { ascending: false });
+
+    const firstError = e1 || e2 || e3;
+    if (firstError) {
+      setError(firstError.message);
+      setLoading(false);
+      return;
+    }
 
     setActive(accepted || []);
     setPending(issued || []);
@@ -280,22 +289,15 @@ export default function Cards() {
         </Button>
       </div>
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : isEmpty ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center space-y-4">
-          <p className="text-sm text-muted-foreground">
-            No permission slips yet. Write one to give an agent access to your data.
-          </p>
-          <Button
-            className="bg-vault-green hover:bg-vault-green/90 text-vault-green-foreground"
-            onClick={() => navigate("/cards/use/new")}
-          >
-            + Write a new permission slip
-          </Button>
-        </div>
-      ) : (
-        <>
+      <QueryState
+        loading={loading}
+        error={error}
+        onRetry={fetchAll}
+        isEmpty={isEmpty}
+        emptyMessage="No permission slips yet. Write one to give an agent access to your data."
+      >
+        <div className="space-y-6">
+          {/* Sections rendered inside QueryState children */}
           {/* Section 1 — Active */}
           {active.length > 0 && (
             <section className="space-y-3">
@@ -364,8 +366,8 @@ export default function Cards() {
               </section>
             </Collapsible>
           )}
-        </>
-      )}
+        </div>
+      </QueryState>
 
       {/* Revoke Confirmation Dialog */}
       <AlertDialog open={!!revokeTarget} onOpenChange={(o) => !o && setRevokeTarget(null)}>

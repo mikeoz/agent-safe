@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { QueryState } from "@/components/QueryState";
 import {
   Check,
   Bot,
@@ -139,7 +140,7 @@ export default function NewUseCard() {
   const [stepError, setStepError] = useState<string | null>(null);
 
   // Fetch agents (entity card instances)
-  const { data: agents = [], isLoading: loadingAgents } = useQuery({
+  const { data: agents = [], isLoading: loadingAgents, isError: agentsError, refetch: refetchAgents } = useQuery({
     queryKey: ["entity-agents"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -171,7 +172,7 @@ export default function NewUseCard() {
 
   // Fetch data cards
   const DATA_FORM_ID = "147a8e87-46f6-4145-b27e-87abbf8cdb77";
-  const { data: dataCards = [], isLoading: loadingData } = useQuery({
+  const { data: dataCards = [], isLoading: loadingData, isError: dataError, refetch: refetchData } = useQuery({
     queryKey: ["data-cards-scope"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -395,11 +396,13 @@ export default function NewUseCard() {
         return (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Who gets the permission?</h2>
-            {loadingAgents ? (
-              <div className="flex items-center gap-2 text-muted-foreground py-8">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading agents…
-              </div>
-            ) : (
+            <QueryState
+              loading={loadingAgents}
+              error={agentsError ? "Could not load agents." : null}
+              onRetry={() => refetchAgents()}
+              isEmpty={agents.length === 0}
+              emptyMessage="No agents found. Register an Entity CARD for an agent first."
+            >
               <div className="grid gap-3">
                 {agents.map((a) => (
                   <Card
@@ -428,7 +431,7 @@ export default function NewUseCard() {
                   </Card>
                 ))}
               </div>
-            )}
+            </QueryState>
           </div>
         );
 
@@ -441,17 +444,13 @@ export default function NewUseCard() {
                 Check the data categories you are authorizing. The agent can ONLY access what you check here.
               </p>
             </div>
-            {loadingData ? (
-              <div className="flex items-center gap-2 text-muted-foreground py-8">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading data cards…
-              </div>
-            ) : dataCards.length === 0 ? (
-              <Alert>
-                <AlertDescription>
-                  No data resources found. Make sure you have Data CARDs created for your account.
-                </AlertDescription>
-              </Alert>
-            ) : (
+            <QueryState
+              loading={loadingData}
+              error={dataError ? "Could not load data resources." : null}
+              onRetry={() => refetchData()}
+              isEmpty={dataCards.length === 0}
+              emptyMessage="No data resources found. Make sure you have Data CARDs created for your account."
+            >
               <div className="grid gap-3">
                 {dataCards.map((dc) => {
                   const checked = selectedDataCards.has(dc.id);
@@ -482,7 +481,7 @@ export default function NewUseCard() {
                   );
                 })}
               </div>
-            )}
+            </QueryState>
             {stepError && (
               <Alert variant="destructive">
                 <AlertDescription>{stepError}</AlertDescription>
