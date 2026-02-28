@@ -134,6 +134,7 @@ export default function NewUseCard() {
   const [duration, setDuration] = useState("P1D");
   const [customExpiry, setCustomExpiry] = useState("");
   const [issuing, setIssuing] = useState(false);
+  const issuingRef = { current: false };
   const [issueError, setIssueError] = useState<string | null>(null);
   const [stepError, setStepError] = useState<string | null>(null);
 
@@ -246,7 +247,8 @@ export default function NewUseCard() {
 
   // ─── Issue Logic ────────────────────────────────────────────────────
   const handleIssue = async () => {
-    if (!agent) return;
+    if (!agent || issuingRef.current) return;
+    issuingRef.current = true;
     setIssuing(true);
     setIssueError(null);
 
@@ -336,6 +338,7 @@ export default function NewUseCard() {
       if (createError) {
         setIssueError(createError.message);
         setIssuing(false);
+        issuingRef.current = false;
         return;
       }
 
@@ -343,6 +346,7 @@ export default function NewUseCard() {
       if (!row || row.error_code) {
         setIssueError(row?.error_message ?? "Unknown error creating instance.");
         setIssuing(false);
+        issuingRef.current = false;
         return;
       }
 
@@ -353,6 +357,7 @@ export default function NewUseCard() {
       if (!currentUser) {
         setIssueError("You must be signed in to issue a permission.");
         setIssuing(false);
+        issuingRef.current = false;
         return;
       }
       const { data: issueData, error: issueErr } = await supabase.rpc("issue_card", {
@@ -363,6 +368,7 @@ export default function NewUseCard() {
       if (issueErr) {
         setIssueError(issueErr.message);
         setIssuing(false);
+        issuingRef.current = false;
         return;
       }
 
@@ -373,9 +379,10 @@ export default function NewUseCard() {
         description: `${agent.name} can now access ${dataTitles} for ${durationLabel(effectiveDuration)}. You can close the door at any time from My Front Door.`,
         duration: Infinity,
       });
-      navigate("/instances");
+      navigate("/cards");
     } catch (err: any) {
       setIssueError(err?.message ?? "Unexpected error.");
+      issuingRef.current = false;
     } finally {
       setIssuing(false);
     }
