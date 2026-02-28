@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opn.li/schemas/card-v0.1.json",
+  "title": "Opn.li CARD v0.1",
+  "description": "JSON Schema for the CARD (Controlled Authorization & Revocation Document) payload. Defines the structure for all three CARD types: entity, data, and use. See OPN4 Master Specification v2.0 Section 3.",
+  "type": "object",
+  "required": ["card", "parties", "claims", "lifecycle", "policy"],
+  "properties": {
+    "card": {
+      "type": "object",
+      "description": "CARD envelope — identifies the card instance.",
+      "required": ["type", "title", "schema_version"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable URN identifier for this CARD (urn:uuid:...)."
+        },
+        "type": {
+          "type": "string",
+          "description": "CARD type URI.",
+          "enum": [
+            "https://opn.li/types/card/entity",
+            "https://opn.li/types/card/data",
+            "https://opn.li/types/card/use"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable title for this CARD instance."
+        },
+        "schema_version": {
+          "type": "string",
+          "description": "Schema version. Current: 0.1.",
+          "const": "0.1"
+        },
+        "spec_version": {
+          "type": "string",
+          "description": "Specification version this CARD conforms to."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 creation timestamp."
+        }
+      }
+    },
+    "parties": {
+      "type": "object",
+      "description": "Identifies the principal (holder), subject, and operator.",
+      "required": ["holder"],
+      "properties": {
+        "holder": {
+          "$ref": "#/$defs/party",
+          "description": "The human principal who owns and controls this CARD."
+        },
+        "subject": {
+          "$ref": "#/$defs/party",
+          "description": "The entity this CARD describes (person, agent, or data resource)."
+        },
+        "operator": {
+          "$ref": "#/$defs/party",
+          "description": "The platform or organization operating the system."
+        },
+        "recipients": {
+          "type": "array",
+          "description": "Intended recipients of this CARD when issued.",
+          "items": { "$ref": "#/$defs/party" }
+        },
+        "agents": {
+          "type": "array",
+          "description": "Agents authorized by this CARD (Use CARDs only).",
+          "items": {
+            "allOf": [
+              { "$ref": "#/$defs/party" },
+              {
+                "type": "object",
+                "properties": {
+                  "capabilities": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Actions this agent is authorized to perform."
+                  },
+                  "operator": {
+                    "$ref": "#/$defs/party",
+                    "description": "The operator of this specific agent."
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "description": "What this CARD asserts or authorizes.",
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "description": "Array of individual claims.",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/claim_item" }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "Current lifecycle state of this CARD.",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["active", "superseded", "revoked"],
+          "description": "Current lifecycle status."
+        },
+        "effective": {
+          "type": "object",
+          "description": "Temporal bounds for Use CARDs.",
+          "properties": {
+            "from": { "type": "string", "format": "date-time" },
+            "to": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "description": "Consent, retention, revocation, and prohibition rules.",
+      "properties": {
+        "consent": {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "type": "string",
+              "description": "Legal basis for consent.",
+              "enum": ["explicit", "legitimate_interest", "contract"]
+            },
+            "granted_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "grants": {
+              "type": "array",
+              "description": "Specific grants with temporal bounds and recipients.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "to": { "$ref": "#/$defs/party" },
+                  "effective": {
+                    "type": "object",
+                    "properties": {
+                      "from": { "type": "string", "format": "date-time" },
+                      "to": { "type": "string", "format": "date-time" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "prohibitions": {
+          "type": "array",
+          "description": "Actions explicitly prohibited under this CARD.",
+          "items": { "$ref": "#/$defs/prohibition" }
+        },
+        "retention": {
+          "type": "object",
+          "description": "Data retention policy.",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["none", "indefinite", "duration"]
+            },
+            "duration": {
+              "type": "string",
+              "description": "ISO 8601 duration (e.g. P7D, P30D, P365D)."
+            },
+            "delete_on_expiry": { "type": "boolean" }
+          }
+        },
+        "revocation": {
+          "type": "object",
+          "description": "Revocation mechanism.",
+          "properties": {
+            "supported": { "type": "boolean" },
+            "permitted": { "type": "boolean" },
+            "immediate": { "type": "boolean" },
+            "mechanism": {
+              "type": "string",
+              "description": "How revocation is enforced (e.g. tno_registry)."
+            }
+          }
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Declared purpose for data processing."
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Origin and source information.",
+      "properties": {
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["user", "system", "agent", "import"]
+              },
+              "ref": {
+                "type": "object",
+                "properties": {
+                  "uri": { "type": "string" },
+                  "storage": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Integrity and verification metadata.",
+      "properties": {
+        "integrity": {
+          "type": "object",
+          "properties": {
+            "digest": {
+              "type": "object",
+              "properties": {
+                "alg": {
+                  "type": "string",
+                  "description": "Hash algorithm (e.g. sha-256)."
+                },
+                "value": {
+                  "type": "string",
+                  "description": "Hex-encoded digest value."
+                }
+              },
+              "required": ["alg", "value"]
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "party": {
+      "type": "object",
+      "description": "A participant in the CARD system: person, agent, or organization.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identifier (URN or URL)."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["person", "agent", "org"],
+          "description": "Type of party."
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable name."
+        }
+      }
+    },
+    "claim_item": {
+      "type": "object",
+      "description": "A single claim within a CARD.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable URN for this claim."
+        },
+        "category": {
+          "type": "string",
+          "description": "Claim category.",
+          "enum": ["attestation", "authorization", "assertion"]
+        },
+        "resource": {
+          "type": "object",
+          "description": "The resource this claim is about.",
+          "properties": {
+            "uri": { "type": "string" },
+            "display_name": { "type": "string" },
+            "storage": { "type": "string" },
+            "data_card_ref": {
+              "type": "string",
+              "description": "Reference to a Data CARD (Use CARDs only)."
+            }
+          }
+        },
+        "sensitivity": {
+          "type": "object",
+          "description": "Data sensitivity classification.",
+          "properties": {
+            "level": {
+              "type": "string",
+              "enum": ["low", "moderate", "high", "critical"]
+            },
+            "labels": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "agent_metadata": {
+          "type": "object",
+          "description": "Agent-specific metadata (Entity CARDs only).",
+          "properties": {
+            "kind": { "type": "string" },
+            "capabilities": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "model": {
+              "type": "object",
+              "properties": {
+                "provider": { "type": "string" },
+                "name": { "type": "string" }
+              }
+            }
+          }
+        },
+        "allowed_actions": {
+          "type": "array",
+          "description": "Actions permitted on the resource.",
+          "items": { "type": "string" }
+        },
+        "constraints": {
+          "type": "object",
+          "description": "Additional constraints on the claim.",
+          "properties": {
+            "allowed_actions": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "purpose": { "type": "string" }
+          }
+        }
+      }
+    },
+    "prohibition": {
+      "type": "object",
+      "description": "An action explicitly prohibited under this CARD.",
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable prohibition code.",
+          "enum": [
+            "no_onward_sharing",
+            "no_training",
+            "no_retention",
+            "no_profiling",
+            "no_sale"
+          ]
+        },
+        "enforcement_tier": {
+          "type": "string",
+          "description": "How this prohibition is enforced.",
+          "enum": ["technical", "architectural", "contractual"]
+        }
+      }
+    }
+  }
+}
