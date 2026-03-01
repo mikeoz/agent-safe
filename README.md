@@ -1,118 +1,146 @@
-# Opn.li Agent Safe
+# My data. Your AI. My control.
 
-**The trust layer for AI agents.**
+**Agent Safe** is the trust layer for the Agent Economy. It ensures that every AI agent that touches your data has a registered identity, scoped permissions, real-time verification, and instant revocation — and that every interaction is permanently logged.
 
-> My data + Your AI + My control = Living Intelligence
-
-Every AI agent that wants to reach data protected by this system must check at the front door first. No permission slip — no access. Every action logged. Every permission revocable. Immediately.
+Think of it this way: before Visa, every store had to decide whether to trust every customer. Visa didn't make customers richer or stores better. It made the transaction trustworthy. Agent Safe does the same thing for AI agents.
 
 ---
 
-## The Two Controls
+## What It Does
 
-**Control 1 — The Front Door (Verification Endpoint)**
-Every agent checks here before reaching your data. Registered? Permission slip? If no — locked out.
+When an AI agent wants to access your data, Agent Safe asks three questions:
 
-**Control 2 — The Permission Slip (CARD)**
-You write it. You choose the agent, the data, the action, the duration, the rules. You revoke it any time.
+1. **Who are you?** Every agent must have a registered identity (Entity CARD) with a named, accountable operator.
+2. **What are you allowed to do?** Every data access requires an explicit, scoped permission (Use CARD) issued by the data owner — with purpose, time limits, and restrictions.
+3. **Are you still allowed?** A real-time Verification Endpoint checks the agent's authorization at the moment of access. If the permission has been revoked, access is denied instantly.
 
-Together: [docs/two-controls.md](docs/two-controls.md)
+The data owner can revoke any permission at any time. Revocation takes effect immediately, globally, permanently.
 
----
+Every permission grant, every access check, every revocation is recorded in a tamper-evident audit log.
 
-## What's in this repo
+## How It Works
 
-| Directory | What it is | Status |
-|-----------|-----------|--------|
-| `src/` | Agent Safe UI — five screens, full trust layer frontend | Live |
-| `endpoint/` | Verification Endpoint — Control 1, the front door | Live (see README) |
-| `supabase/` | Database schema, RPCs, RLS policies | Live |
-| `docs/` | Two Controls explainer, demo flow, position paper | Live |
-| `schema/` | Migration SQL, CARD JSON Schema | March 8 |
+Agent Safe uses a typed authorization instrument called a **CARD** (Community Approved Reliable Data):
 
----
+| CARD Type | What It Does | Example |
+|---|---|---|
+| **Entity CARD** | Registers an agent's identity and operator | "My Health Assistant, operated by Opn.li" |
+| **Data CARD** | Describes a governed data resource | "My glucose readings — sensitive health data" |
+| **Use CARD** | Grants scoped, time-bound, revocable access | "My Health Assistant may read my glucose data for trend analysis, until Dec 31, no storage allowed" |
 
-## Quick start
+The **Verification Endpoint** is the front door. Any system can query it in real time: *"Is this agent authorized to access this data right now?"* The answer is instant, composite, and machine-readable.
 
-You need: a [Supabase](https://supabase.com) account (free tier works) and [Node.js](https://nodejs.org).
+## Architecture
 
-```bash
-# 1. Clone
-git clone https://github.com/mikeoz/opn4.git
-cd opn4
-
-# 2. Configure
-cp .env.example .env
-# Edit .env with your Supabase project URL and keys
-
-# 3. Install
-npm install
-
-# 4. Push database schema
-npx supabase db push
-
-# 5. Run
-npm run dev
+```
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  Data Owner   │────▶│   Agent Safe     │◀────│    AI Agent      │
+│  (Principal)  │     │   Trust Layer    │     │  (CARD-carrying) │
+└──────────────┘     └──────────────────┘     └──────────────────┘
+                            │
+                     ┌──────┴──────┐
+                     │ Verification │
+                     │  Endpoint    │
+                     │ (Front Door) │
+                     └─────────────┘
 ```
 
-The Verification Endpoint is already live and running:
-`https://biejnguqnejzwmypotez.supabase.co/functions/v1/verify-card`
+- **Supabase Postgres** — Entity CARDs, Data CARDs, Use CARDs, audit log
+- **Edge Function** — Verification Endpoint with rate limiting, API key authentication, and CORS protection
+- **React Frontend** — Permission slip wizard, audit trail viewer, agent management (built with Lovable)
+- **Row-Level Security** — Every query is scoped to the authenticated user
+- **Hash Chain Audit** — SHA-256 chain on audit entries for tamper evidence
 
-Full schema SQL and seed data published **March 8, 2026** after provisional patent filing.
+## Quick Start
 
----
+### Prerequisites
 
-## The demo
+- A Supabase account (free tier is sufficient for evaluation)
+- Node.js 18+
 
-Bob has his health records protected by Agent Safe.
-His AI health assistant wants to help him understand his vital signs.
-Right now, the door is closed.
+### Setup
 
-In 3 minutes: Bob writes a permission slip. His AI gets exactly what the slip says — Vital Signs only, read only, 24 hours. Bob closes the door. One tap. Immediate.
+1. Clone this repository
+2. Copy `.env.example` to `.env` and add your Supabase credentials:
+   ```
+   VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_anon_key_here
+   ```
+3. Run the schema migrations in order:
+   ```
+   schema/migrations/001-core-tables.sql
+   schema/migrations/002-rls-policies.sql
+   schema/migrations/003-rpcs-core.sql
+   schema/migrations/004-rpcs-lifecycle.sql
+   schema/migrations/005-payload-validation.sql
+   schema/migrations/006-verification-endpoint.sql
+   ```
+4. Seed the demo data:
+   ```
+   demo/seed/bob-bethany-demo-seed.sql
+   ```
+5. Deploy the Edge Function (`endpoint/index.ts`) to your Supabase project
+6. Add a `VERIFY_API_KEY` secret to your Supabase Edge Function secrets
+7. Start the frontend:
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-Full demo walkthrough: [docs/demo-flow.md](docs/demo-flow.md)
+### Demo Flow
 
----
+Log in as the demo user (Bob Bethany). You'll see:
 
-## For OpenClaw developers
+- **Entities & Agents** — "My Health Assistant" is registered with an active Entity CARD
+- **Data Rooms** — Three data resources (glucose, medications, appointments) each with Data CARDs
+- **CARDs** — Write a permission slip to grant the agent access to your data
+- **Activities & Reports** — Every action is logged with timestamps
 
-If you're building AI agents and your clients handle sensitive data — this is your trust infrastructure.
+## CARD Specification
 
-Your agent registers an Entity CARD. Your client writes a Use CARD (the permission slip). Your agent calls the Verification Endpoint before every data access. Everything is logged. The client can revoke access any time.
+The CARD schema is defined in `schema/schemas/card-v0.1.json`. The full specification is being submitted as a W3C Community Group deliverable.
 
-That's the pitch: *"Your data never leaves your system. You control who sees it. You can revoke access any time."*
+The Verification Endpoint response schema follows OPN4 Master Specification v2.5, Section 5.8, including the SF-02 trust_summary composite field.
 
----
+## For Developers
 
-## Agent Safe certification
+**Making a skill CARD-ready:** If you build AI agent skills (for OpenClaw or any agent framework), Agent Safe provides the trust infrastructure your skill needs to pass enterprise procurement. A CARD-ready skill has a registered identity, scoped authorization, and an audit trail.
 
-Opn.li Agent Safe is also the name of the certification standard. This repo is the reference implementation.
+**Verification Endpoint integration:** Your agent or platform calls the VE before accessing governed data:
 
-An agent that integrates with this system — registers an Entity CARD, requests a Use CARD, respects the Verification Endpoint response — is operating as an Agent Safe participant.
+```
+GET /functions/v1/verify-card?agent_id={agent_uri}
+Header: x-api-key: {your_api_key}
+```
 
-Formal certification tiers (CARD Ready, Agent Safe, Trust Node Operator) are defined at [opn.li/certification](https://opn.li/certification).
+The response tells you: entity status, operator identity, active permissions, restrictions, and a computed trust summary — in one call.
 
----
+## Security
+
+See [docs/security-notice.md](docs/security-notice.md) for a transparent statement of what Agent Safe does and does not protect.
+
+See [docs/production-hardening.md](docs/production-hardening.md) for guidance on deploying with regulated data (HIPAA, SOC 2, GDPR).
 
 ## Status
 
-| Component | Status |
-|-----------|--------|
-| Verification Endpoint | ✅ Live |
-| CARD lifecycle (issue, accept, revoke) | ✅ Live |
-| Audit trail | ✅ Live |
-| Five-screen UI | ✅ Live |
-| Schema SQL (public) | March 8 |
-| CARD JSON Schema v0.1 | March 8 |
-| Demo seed SQL | March 8 |
-| Provisional patent | March 7 |
+This is a reference implementation. The live system is deployed on Supabase with:
 
----
+- ✅ Row-Level Security on all tables (no cross-user data leakage)
+- ✅ Auth guards on all write RPCs
+- ✅ Rate-limited Verification Endpoint with API key authentication
+- ✅ Payload validation on CARD creation
+- ✅ Idempotency guards on write operations
+- ✅ SHA-256 hash chain on audit log entries
+- ✅ Duplicate submission guard on the UI
+
+## License
+
+This project is the reference implementation for the CARD specification. The specification is intended for submission to W3C under Royalty-Free licensing terms. See LICENSE for details.
 
 ## About
 
-Built by [Opn.li](https://opn.li) — Openly Trusted Services.
+**Opn.li** (Openly Trusted Services) operates the Trust Network for the Agent Economy. We don't build agents. We don't compete with platforms. We make every agent transaction trustworthy.
 
 *My data. Your AI. My control.*
 
-Apache 2.0 License
+Patent pending: US Provisional Application 63/992,579 (filed February 27, 2026).
