@@ -21,8 +21,10 @@ export type Database = {
           created_at: string
           entity_id: string
           entity_type: string
+          entry_hash: string | null
           id: string
           lifecycle_context: Json | null
+          prev_hash: string | null
         }
         Insert: {
           action: string
@@ -30,8 +32,10 @@ export type Database = {
           created_at?: string
           entity_id: string
           entity_type: string
+          entry_hash?: string | null
           id?: string
           lifecycle_context?: Json | null
+          prev_hash?: string | null
         }
         Update: {
           action?: string
@@ -39,8 +43,10 @@ export type Database = {
           created_at?: string
           entity_id?: string
           entity_type?: string
+          entry_hash?: string | null
           id?: string
           lifecycle_context?: Json | null
+          prev_hash?: string | null
         }
         Relationships: []
       }
@@ -201,6 +207,27 @@ export type Database = {
           },
         ]
       }
+      idempotency_keys: {
+        Row: {
+          created_at: string
+          function_name: string
+          key: string
+          result_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          function_name: string
+          key: string
+          result_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          function_name?: string
+          key?: string
+          result_id?: string | null
+        }
+        Relationships: []
+      }
       rate_limits: {
         Row: {
           endpoint: string
@@ -237,12 +264,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      cleanup_idempotency_keys: {
+        Args: { p_max_age_hours?: number }
+        Returns: number
+      }
       cleanup_rate_limits: {
         Args: { p_max_age_seconds?: number }
         Returns: number
       }
       create_card_instance: {
-        Args: { p_form_id: string; p_payload: Json }
+        Args: { p_form_id: string; p_idempotency_key?: string; p_payload: Json }
         Returns: {
           error_code: string
           error_message: string
@@ -296,6 +327,7 @@ export type Database = {
       }
       issue_card: {
         Args: {
+          p_idempotency_key?: string
           p_instance_id: string
           p_invitee_locator?: string
           p_recipient_member_id?: string
@@ -353,9 +385,21 @@ export type Database = {
           new_instance_id: string
         }[]
       }
-      verify_agent_trust:
-        | { Args: { p_agent_id: string; p_card_ref?: string }; Returns: Json }
-        | { Args: { params: Json }; Returns: Json }
+      verify_agent_trust: {
+        Args: { p_agent_id: string; p_card_ref?: string }
+        Returns: Json
+      }
+      verify_audit_chain: {
+        Args: never
+        Returns: {
+          broken_at_id: string
+          broken_at_time: string
+          chain_valid: boolean
+          pre_chain_entries: number
+          total_entries: number
+          verified_entries: number
+        }[]
+      }
     }
     Enums: {
       card_form_status: "draft" | "registered"
