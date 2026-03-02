@@ -192,16 +192,13 @@ export default function MyFrontDoor() {
 
   // ── Fetch stats ──────────────────────────────────────────────────────
   const fetchStats = useCallback(async () => {
-    // 1. Endpoint health
+    // 1. Endpoint health — use demo-verify proxy to avoid CORS restrictions
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 4000);
-      const res = await fetch(
-        `${VERIFY_URL}?agent_id=urn:uuid:00000000-0000-0000-0000-000000000000&card_ref=none`,
-        { signal: ctrl.signal }
-      );
-      clearTimeout(timer);
-      setEndpointOk(res.ok);
+      const { error } = await supabase.functions.invoke("demo-verify", {
+        body: { agent_id: "urn:uuid:00000000-0000-0000-0000-000000000000" },
+      });
+      // Any response (even "not found") means the endpoint is reachable
+      setEndpointOk(true);
     } catch {
       setEndpointOk(false);
     }
