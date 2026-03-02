@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { CopyIdButton } from "@/components/CopyIdButton";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const PROHIBITION_LABELS: Record<string, string> = {
@@ -102,6 +103,12 @@ export function PermissionSlipDetailPanel({
 }: PermissionSlipDetailPanelProps) {
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{
+    authorized: boolean;
+    timestamp: string;
+    entityStatus: string;
+  } | null>(null);
 
   const payload = issuance?.card_instances?.payload as any;
   const card = payload?.card || {};
@@ -137,6 +144,48 @@ export function PermissionSlipDetailPanel({
     }
     loadAudit();
   }, [open, issuance?.id]);
+
+  const handleTestVerify = async () => {
+    if (!issuance || verifying) return;
+    setVerifying(true);
+    setVerifyResult(null);
+    try {
+      const agentId =
+        agent?.id ||
+        payload?.card?.id ||
+        (issuance.card_instances?.id ? `urn:uuid:${issuance.card_instances.id}` : null);
+
+      if (!agentId) {
+        setVerifyResult({ authorized: false, timestamp: new Date().toISOString(), entityStatus: "no_agent_id" });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("demo-verify", {
+        body: {
+          agent_id: agentId,
+          card_ref: issuance.card_instances?.id ? `urn:uuid:${issuance.card_instances.id}` : undefined,
+        },
+      });
+
+      if (error) throw error;
+
+      const isAuthorized =
+        data?.entity_status === "active" &&
+        Array.isArray(data?.active_use_cards) &&
+        data.active_use_cards.length > 0;
+
+      setVerifyResult({
+        authorized: isAuthorized,
+        timestamp: data?.verified_at || new Date().toISOString(),
+        entityStatus: data?.entity_status || "unknown",
+      });
+    } catch (err: any) {
+      console.error("Verification test failed:", err);
+      setVerifyResult({ authorized: false, timestamp: new Date().toISOString(), entityStatus: "error" });
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -323,7 +372,40 @@ export function PermissionSlipDetailPanel({
             )}
           </div>
 
-          {/* Action buttons */}
+          {/* Test Verification */}
+          <div>
+            <SectionHeading>Verification endpoint</SectionHeading>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleTestVerify}
+              disabled={verifying}
+            >
+              {verifying ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Checking…
+                </>
+              ) : (
+                "Test Verification Endpoint"
+              )}
+            </Button>
+
+            {verifyResult && (
+              <div className="mt-3 rounded-lg border p-4 text-center space-y-2">
+                {verifyResult.authorized ? (
+                  <p className="text-2xl font-bold text-emerald-600">✅ AUTHORIZED</p>
+                ) : (
+                  <p className="text-2xl font-bold text-destructive">🔒 DENIED</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Checked at {formatDateTime(verifyResult.timestamp)}
+                </p>
+              </div>
+            )}
+          </div>
+
+
           {statusVariant === "accepted" && onRevoke && (
             <Button
               variant="destructive"

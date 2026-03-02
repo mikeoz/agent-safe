@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.verify-card]
 verify_jwt = false
+
+[functions.demo-verify]
+verify_jwt = false
