@@ -1,0 +1,76 @@
+CARD Developer Test Kit — License
+
+Copyright (c) 2026 Openly Personal Networks, Inc. (Opn.li)
+US Provisional Patent Application No. 63/992,579 (filed February 27, 2026)
+
+==========================================================================
+WHAT THIS FILE COVERS
+==========================================================================
+
+This repository contains two categories of intellectual property,
+each under a different licensing regime. Read both sections.
+
+==========================================================================
+SECTION A — ROYALTY-FREE: THE CARD PROTOCOL
+==========================================================================
+
+The following elements define the CARD open protocol and are licensed
+on a Royalty-Free (RF) basis consistent with the W3C Patent Policy:
+
+  - The CARD data model: Entity CARDs, Data CARDs, and Use CARDs
+  - The JSON Schema (card-v0.1.json)
+  - The SQL migrations (001–006) as a reference implementation
+  - The Verification Endpoint interface contract (request/response format)
+  - The demo seed script (bob-bethany-demo-seed.sql)
+  - All documentation in this repository (README, docs/)
+
+WHAT YOU CAN DO (RF elements):
+  ✓ Implement the CARD data model in any language or storage engine
+  ✓ Build applications that create, read, and manage CARDs
+  ✓ Build clients that call a Verification Endpoint
+  ✓ Use, modify, and redistribute the reference SQL and JSON Schema
+  ✓ Use these materials for commercial or non-commercial purposes
+  ✓ Fork this repository and build on it
+
+NO royalty, license fee, or permission is required for the above uses.
+This commitment is irrevocable for any implementation that conforms to
+the CARD protocol as defined in the published W3C Position Paper.
+
+==========================================================================
+SECTION B — PATENT-RESERVED: TRUST NETWORK OPERATION
+==========================================================================
+
+US Provisional Patent Application 63/992,579 describes a method for
+operating a trust network that verifies CARD-based credentials. The
+patent covers the OPERATIONAL METHOD, not the data model or protocol.
+
+Specifically, the patent covers the integrated method by which a
+network operator:
+  - Authenticates requesting parties via API key infrastructure
+  - Performs CARD verification with rate limiting and abuse controls
+  - Maintains tamper-evident audit logs of all verification events
+  - Operates a three-tier enforcement system (technical, contractual,
+    and governance) as a unified trust network
+
+WHAT THIS MEANS FOR YOU:
+
+  If you are BUILDING WITH CARDs (implementing the data model, calling
+  a Verification Endpoint, creating CARD-aware applications):
+    → You are using Section A elements. No license required. Build freely.
+
+  If you are OPERATING A TRUST NETWORK (running a verification service
+  that authenticates callers, rate-limits requests, maintains audit logs,
+  and enforces trust policies on behalf of multiple parties):
+    → You may be practicing the method described in the patent.
+    → Contact ip@opn.li to discuss licensing.
+
+The distinction is between USING the protocol (free) and OPERATING
+the network infrastructure (licensed).
+
+==========================================================================
+QUESTIONS
+==========================================================================
+
+For licensing inquiries: ip@opn.li
+For technical questions: github.com/mikeoz/agent-safe/issues
+For the W3C Position Paper: [URL to be added upon publication]

@@ -1,3 +1,17 @@
+/**
+ * CARD Verification Endpoint — Reference Implementation
+ *
+ * This Edge Function implements the CARD Verification Endpoint interface,
+ * which is part of the Royalty-Free CARD protocol.
+ *
+ * The internal implementation details (authentication, rate limiting,
+ * audit logging) are provided as a reference. Operating these mechanisms
+ * as part of a trust network verification service may be subject to
+ * US Provisional Patent Application 63/992,579.
+ *
+ * See LICENSE in the repository root for full terms.
+ */
+
 // ============================================================================
 // Opn.li Agent Safe — Verification Endpoint
 // Supabase Edge Function: verify-card
