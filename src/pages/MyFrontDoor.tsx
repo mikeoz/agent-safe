@@ -193,14 +193,18 @@ export default function MyFrontDoor() {
   // ── Fetch stats ──────────────────────────────────────────────────────
   const fetchStats = useCallback(async () => {
     // 1. Endpoint health — use demo-verify proxy to avoid CORS restrictions
-    try {
-      const { error } = await supabase.functions.invoke("demo-verify", {
-        body: { agent_id: "urn:uuid:00000000-0000-0000-0000-000000000000" },
-      });
-      // Any response (even "not found") means the endpoint is reachable
-      setEndpointOk(true);
-    } catch {
-      setEndpointOk(false);
+    if (!user) {
+      setEndpointOk(null);
+    } else {
+      try {
+        const { data, error } = await supabase.functions.invoke("demo-verify", {
+          body: { agent_id: "urn:uuid:00000000-0000-0000-0000-000000000000" },
+        });
+        // Any response (even an error payload) means the endpoint is reachable
+        setEndpointOk(true);
+      } catch {
+        setEndpointOk(false);
+      }
     }
 
     // 2. Data count
@@ -240,7 +244,7 @@ export default function MyFrontDoor() {
     }
 
     setLastUpdated(new Date());
-  }, []);
+  }, [user]);
 
   // ── Fetch permissions ────────────────────────────────────────────────
   const fetchPermissions = useCallback(async () => {
